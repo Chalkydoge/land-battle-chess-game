@@ -1,5 +1,15 @@
 # Author: Yiwen (Victor) Song
 
+## Secondary Development Notice
+
+This repository is a secondary development based on the original Land Battle Chess project by Yiwen (Victor) Song.
+
+- Original project author: Yiwen (Victor) Song
+- Secondary development and maintenance: doge
+- License: MIT
+
+This project follows the MIT License requirements. The original copyright notice and the MIT License text are retained in the [LICENSE](LICENSE) file.
+
 Welcome to the Land Battle Chess Game.
 
 If you do not know how to play, read this Wikipedia page:
