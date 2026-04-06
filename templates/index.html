@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>军棋 - Land Battle Chess</title>
+<style>
+/* ---- reset & base ---- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #e8e4df; min-height: 100vh; }
+
+/* ---- page layout ---- */
+.page { display: flex; justify-content: center; gap: 36px; padding: 28px; min-height: 100vh; align-items: flex-start; }
+.board-area { flex-shrink: 0; }
+.panel { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* ---- board ---- */
+.board-wrapper {
+  background: linear-gradient(180deg, #648943 0%, #557836 100%);
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.22);
+  position: relative;
+}
+.board-title { text-align: center; color: #f0eccf; font-size: 18px; letter-spacing: 4px; margin-bottom: 10px; font-weight: 800; text-shadow: 0 1px 0 rgba(0,0,0,.15); }
+#board-svg {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+table { border-collapse: separate; border-spacing: 6px; margin: 0 auto; position: relative; z-index: 1; }
+
+/* ---- floating piece for animation ---- */
+.ghost-piece {
+  position: absolute; z-index: 10; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 800; color: #fff;
+  text-shadow: none;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+}
+.ghost-piece.side-A { background: #e8943a; border: 2px solid #b06818; }
+.ghost-piece.side-B { background: #3a8ad0; border: 2px solid #1a5a90; }
+
+/* river */
+.river td { height: 22px; background: #4a8ac0; border: none; border-radius: 0; cursor: default; position: relative; }
+.river td::after { content: "~ ~ ~"; color: #90d0f0; font-size: 12px; letter-spacing: 2px; }
+
+/* ---- cells ---- */
+td {
+  width: 72px; height: 48px;
+  text-align: center; vertical-align: middle;
+  font-size: 20px; font-weight: 800;
+  cursor: pointer; user-select: none;
+  border: 1px solid #3a5a2a;
+  border-radius: 4px;
+  position: relative;
+  transition: background 0.12s, box-shadow 0.12s;
+  background: #c4b998;
+  color: #333;
+}
+td.camp { border-radius: 50%; background: #b8cfa0; border: 2px dashed #6a8a4a; }
+td.hq { background: #a08060; border: 3px double #5a3a1a; border-radius: 6px; }
+td.empty { color: transparent; }
+td.camp.empty { background: #c8d8b4; }
+td.hq.empty { background: #b89878; }
+
+td.side-A { background: #e8943a; color: #fff; text-shadow: none; border-color: #b06818; }
+td.side-B { background: #3a8ad0; color: #fff; text-shadow: none; border-color: #1a5a90; }
+
+/* ---- interaction states ---- */
+td.selected { box-shadow: 0 0 0 3px #ff2020, inset 0 0 6px rgba(255,0,0,.15); z-index: 2; }
+td.highlight { background: #70d870 !important; color: #1a3a1a !important; text-shadow: none !important; border-color: #40a040 !important; box-shadow: inset 0 0 8px rgba(64,160,64,.3); }
+td.move-from { box-shadow: 0 0 0 3px #e04040; z-index: 2; }
+td.move-to   { box-shadow: 0 0 0 3px #e04040; z-index: 2; }
+td.ai-from   { box-shadow: 0 0 0 3px #e88020; z-index: 2; }
+td.ai-to     { box-shadow: 0 0 0 3px #e88020; z-index: 2; }
+td.trace-point {
+  outline: 2px dashed #d32f2f;
+  outline-offset: -3px;
+  animation: trace-flash 0.9s infinite;
+}
+@keyframes trace-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(211,47,47,0.05); }
+  50% { box-shadow: 0 0 0 2px rgba(211,47,47,0.45); }
+}
+.move-cursor {
+  position: absolute;
+  z-index: 4;
+  min-width: 18px;
+  height: 12px;
+  line-height: 12px;
+  font-size: 8px;
+  font-weight: 800;
+  text-align: center;
+  border-radius: 8px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.75);
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
+.cursor-player-from { top: 2px; left: 2px; background: #2d7ff9; }
+.cursor-player-to { top: 2px; right: 2px; background: #1b4f9a; }
+.cursor-ai-from { bottom: 2px; left: 2px; background: #f29a2e; color: #fff; }
+.cursor-ai-to { bottom: 2px; right: 2px; background: #c76a1d; }
+
+/* capture flash */
+@keyframes capture-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(255,60,60,.7); }
+  50%  { box-shadow: 0 0 16px 6px rgba(255,60,60,.5); }
+  100% { box-shadow: 0 0 0 0 rgba(255,60,60,0); }
+}
+td.capture-effect { animation: capture-flash 0.4s ease-out; }
+
+/* ---- SVG path highlight ---- */
+.svg-path-hl { stroke: #f0e060; stroke-width: 5; stroke-linecap: round; opacity: 0.5; }
+.svg-trace-player {
+  stroke: #2d7ff9;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0.95;
+}
+.svg-trace-ai {
+  stroke: #f29a2e;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0.95;
+}
+
+/* ---- right panel ---- */
+.card {
+  background: linear-gradient(180deg, #ffffff 0%, #fcfcfc 100%);
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #ececec;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+.card h3 { font-size: 16px; color: #6d6d6d; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 7px; letter-spacing: .5px; }
+.status-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 16px; }
+.status-label { color: #888; }
+.status-value { font-weight: 800; color: #2d2d2d; }
+.turn-indicator { font-size: 24px; text-align: center; padding: 10px 0; font-weight: bold; }
+.turn-player { color: #2070c0; }
+.turn-ai { color: #d07020; }
+.turn-thinking { color: #d07020; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.result { text-align: center; font-size: 22px; font-weight: bold; padding: 12px 0; border-radius: 6px; }
+.result-win { background: #d4edda; color: #155724; }
+.result-lose { background: #f8d7da; color: #721c24; }
+.last-move { font-size: 15px; color: #555; line-height: 1.6; }
+.last-move .player-move { color: #2070c0; }
+.last-move .ai-move-text { color: #d07020; }
+.battle-log {
+  height: 180px;
+  overflow-y: auto;
+  font-size: 15px;
+  color: #555;
+  line-height: 1.55;
+}
+.battle-log-item {
+  padding: 6px 0;
+  border-bottom: 1px dashed #eee;
+}
+.battle-log-latest {
+  color: #c62828;
+  font-weight: 800;
+}
+.battle-log-empty { color: #999; }
+.debug-card { max-height: 520px; overflow: hidden; }
+.debug-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.debug-toolbar button {
+  border: 1px solid #cfd7df;
+  background: linear-gradient(180deg, #f7f9fb 0%, #eef2f6 100%);
+  color: #2d2d2d;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.debug-toolbar button:hover { background: linear-gradient(180deg, #eef2f6 0%, #e3e8ed 100%); }
+.debug-scroll { max-height: 430px; overflow-y: auto; padding-right: 4px; }
+.debug-section { margin-bottom: 14px; }
+.debug-focus {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #f0d2a5;
+  background: linear-gradient(180deg, #fff8ef 0%, #fff2df 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
+}
+.debug-focus-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #8c5412;
+  margin-bottom: 6px;
+}
+.debug-focus-main {
+  font-size: 14px;
+  color: #5d4330;
+  line-height: 1.6;
+}
+.debug-focus-list {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #5f5142;
+  line-height: 1.6;
+}
+.debug-focus-item {
+  padding: 4px 0;
+  border-top: 1px dashed rgba(140,84,18,.16);
+}
+.debug-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #5e6a73;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+.debug-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.debug-metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #555;
+  padding: 3px 0;
+  border-bottom: 1px dashed #eee;
+}
+.debug-plan {
+  padding: 9px 10px;
+  border: 1px solid #e6eaee;
+  border-radius: 8px;
+  background: #fafbfc;
+  margin-bottom: 8px;
+}
+.debug-plan-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #32414b;
+}
+.debug-plan-note {
+  font-size: 13px;
+  color: #58656e;
+  line-height: 1.45;
+}
+.debug-plan-cells {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #7a8790;
+}
+.debug-candidate {
+  border: 1px solid #e7ebef;
+  border-radius: 8px;
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+.debug-candidate.selected {
+  border-color: #d98a2b;
+  background: #fff6ea;
+  box-shadow: inset 0 0 0 1px rgba(217,138,43,.12);
+}
+.debug-candidate-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #2f3c45;
+}
+.debug-candidate-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6d7982;
+  line-height: 1.45;
+}
+.debug-tags {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.debug-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef3f7;
+  color: #52606b;
+  font-size: 11px;
+  font-weight: 700;
+}
+.debug-reasons {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #59656d;
+  line-height: 1.45;
+}
+.debug-empty {
+  color: #8b949c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.new-game-section label { display: block; font-size: 16px; margin-bottom: 4px; cursor: pointer; }
+.new-game-section .option-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+.new-game-section .opt-btn, .new-game-section button {
+  width: 100%;
+  padding: 10px 8px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.new-game-section .opt-btn {
+  background: linear-gradient(180deg, #f8f9fb 0%, #eef2f6 100%);
+  color: #2d2d2d;
+  font-weight: 700;
+  border-color: #cfd7df;
+  box-shadow: 0 2px 4px rgba(0,0,0,.06);
+}
+.new-game-section .opt-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 10px rgba(0,0,0,.12);
+}
+.new-game-section .opt-btn.active {
+  background: linear-gradient(180deg, #678e44 0%, #557836 100%);
+  color: #fff;
+  border-color: #496c2f;
+  box-shadow: 0 0 0 2px rgba(90,122,58,.2), 0 5px 12px rgba(0,0,0,.16);
+}
+.new-game-section button {
+  background: linear-gradient(180deg, #678e44 0%, #557836 100%);
+  color: #fff;
+  border: none;
+  font-weight: 800;
+  margin-top: 10px;
+  box-shadow: 0 4px 10px rgba(85,120,54,.3);
+}
+.new-game-section button:hover {
+  background: linear-gradient(180deg, #5d8340 0%, #4b6b30 100%);
+  transform: translateY(-1px);
+}
+.new-game-section .opt-btn:focus-visible,
+.new-game-section button:focus-visible {
+  outline: 2px solid #2d7ff9;
+  outline-offset: 2px;
+}
+@media (max-width: 1100px) {
+  .page { flex-direction: column; align-items: center; }
+  .panel { width: min(680px, 100%); }
+  .debug-card { max-height: none; }
+  .debug-scroll { max-height: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="board-area">
+    <div class="board-wrapper">
+      <div class="board-title">陆 战 棋</div>
+      <svg id="board-svg"></svg>
+      <table id="board"></table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="card" id="status-card">
+      <h3>对局状态</h3>
+      <div id="turn-display" class="turn-indicator">等待开始</div>
+      <div id="result-display"></div>
+      <div class="status-row">
+        <span class="status-label">模式</span>
+        <span class="status-value" id="s-mode">—</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">难度</span>
+        <span class="status-value" id="s-diff">—</span>
+      </div>
+    </div>
+    <div class="card" id="move-card" style="display:none">
+      <h3>最近走子</h3>
+      <div id="last-move" class="last-move"></div>
+    </div>
+    <div class="card" id="battle-card">
+      <h3>最近战斗记录</h3>
+      <div id="battle-log" class="battle-log"></div>
+    </div>
+    <div class="card debug-card" id="debug-card">
+      <h3>AI 计划调试</h3>
+      <div class="debug-toolbar">
+        <span id="debug-status" class="status-label">等待棋局</span>
+        <button type="button" onclick="refreshAiDebug()">刷新分析</button>
+      </div>
+      <div id="debug-panel" class="debug-scroll"></div>
+    </div>
+    <div class="card new-game-section">
+      <h3>新游戏</h3>
+      <label>模式</label>
+      <input type="hidden" id="opt-mode" value="hidden">
+      <div class="option-group" id="mode-group">
+        <button type="button" class="opt-btn active" data-target="opt-mode" data-value="hidden">暗手模式</button>
+        <button type="button" class="opt-btn" data-target="opt-mode" data-value="open">明手模式</button>
+      </div>
+      <label>难度</label>
+      <input type="hidden" id="opt-diff" value="easy">
+      <div class="option-group" id="diff-group">
+        <button type="button" class="opt-btn active" data-target="opt-diff" data-value="easy">简单</button>
+        <button type="button" class="opt-btn" data-target="opt-diff" data-value="hard">困难</button>
+      </div>
+      <button onclick="startGame()">开始游戏</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==============================================================
+   Board connection topology
+   ============================================================== */
+const BOARD_CONNECTIONS = (() => {
+  const conns = [];
+  const rrSet = new Set();
+  for (let i = 1; i <= 10; i++) { rrSet.add(`${i},0`); rrSet.add(`${i},4`); }
+  for (let c = 0; c < 5; c++) {
+    for (const r of [1, 5, 6, 10]) rrSet.add(`${r},${c}`);
+  }
+  const isRR = (r, c) => rrSet.has(`${r},${c}`);
+  const edgeType = (r1, c1, r2, c2) =>
+    (isRR(r1, c1) && isRR(r2, c2)) ? 'railroad' : 'road';
+
+  for (let c = 0; c < 5; c++) {
+    for (let r = 0; r < 11; r++) {
+      if (r === 5 && (c === 1 || c === 3)) continue;
+      conns.push({ from: [r, c], to: [r + 1, c], type: edgeType(r, c, r + 1, c) });
+    }
+  }
+  for (let r = 0; r < 12; r++) {
+    for (let c = 0; c < 4; c++) {
+      conns.push({ from: [r, c], to: [r, c + 1], type: edgeType(r, c, r, c + 1) });
+    }
+  }
+  const camps = [[2,1],[2,3],[3,2],[4,1],[4,3],[7,1],[7,3],[8,2],[9,1],[9,3]];
+  const seen = new Set();
+  const ek = (r1,c1,r2,c2) => {
+    if (r1<r2||(r1===r2&&c1<c2)) return `${r1},${c1}-${r2},${c2}`;
+    return `${r2},${c2}-${r1},${c1}`;
+  };
+  for (const [cr,cc] of camps) {
+    for (const [dr,dc] of [[-1,-1],[-1,1],[1,-1],[1,1]]) {
+      const nr=cr+dr, nc=cc+dc;
+      if (nr>=0&&nr<=11&&nc>=0&&nc<=4) {
+        const key=ek(cr,cc,nr,nc);
+        if (!seen.has(key)) { seen.add(key); conns.push({from:[cr,cc],to:[nr,nc],type:'camp'}); }
+      }
+    }
+  }
+  return conns;
+})();
+
+const LINE_STYLES = {
+  railroad: { stroke: '#2a1a08', width: 3.5, dash: '' },
+  road:     { stroke: '#4a3a20', width: 1.5, dash: '' },
+  camp:     { stroke: '#4a3a20', width: 1.2, dash: '4,3' },
+};
+
+/* --- cell center cache (refreshed on render) --- */
+let cellCenters = {};
+
+function getCellRect(r, c) {
+  const td = document.querySelector(`#board td[data-row="${r}"][data-col="${c}"]`);
+  if (!td) return null;
+  return td.getBoundingClientRect();
+}
+
+function refreshCenters() {
+  cellCenters = {};
+  const wrapperRect = document.querySelector('.board-wrapper').getBoundingClientRect();
+  document.querySelectorAll('#board td[data-row]').forEach(td => {
+    const r = parseInt(td.dataset.row), c = parseInt(td.dataset.col);
+    const rect = td.getBoundingClientRect();
+    cellCenters[`${r},${c}`] = {
+      x: rect.left + rect.width/2 - wrapperRect.left,
+      y: rect.top + rect.height/2 - wrapperRect.top,
+    };
+  });
+}
+
+/* --- SVG rendering with optional path highlights --- */
+let svgHighlightEdges = []; // [{from:[r,c], to:[r,c]}] for path highlight
+
+function renderSVG() {
+  const svg = document.getElementById('board-svg');
+  const wrapper = document.querySelector('.board-wrapper');
+  refreshCenters();
+
+  const w = wrapper.offsetWidth, h = wrapper.offsetHeight;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+
+  const order = ['road', 'camp', 'railroad'];
+  const groups = { road: [], camp: [], railroad: [] };
+
+  for (const conn of BOARD_CONNECTIONS) {
+    const a = cellCenters[`${conn.from[0]},${conn.from[1]}`];
+    const b = cellCenters[`${conn.to[0]},${conn.to[1]}`];
+    if (!a || !b) continue;
+    const style = LINE_STYLES[conn.type];
+    let line = `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" `;
+    line += `stroke="${style.stroke}" stroke-width="${style.width}" stroke-linecap="round"`;
+    if (style.dash) line += ` stroke-dasharray="${style.dash}"`;
+    line += ` data-from="${conn.from}" data-to="${conn.to}"/>`;
+    groups[conn.type].push(line);
+  }
+
+  const rrMarks = [];
+  for (const conn of BOARD_CONNECTIONS) {
+    if (conn.type !== 'railroad') continue;
+    const a = cellCenters[`${conn.from[0]},${conn.from[1]}`];
+    const b = cellCenters[`${conn.to[0]},${conn.to[1]}`];
+    if (!a || !b) continue;
+    const dx = b.x-a.x, dy = b.y-a.y;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    if (len < 1) continue;
+    const nx = -dy/len, ny = dx/len, tickLen = 4;
+    const count = Math.max(2, Math.round(len/16));
+    for (let i = 1; i < count; i++) {
+      const t = i/count, mx = a.x+dx*t, my = a.y+dy*t;
+      rrMarks.push(`<line x1="${mx-nx*tickLen}" y1="${my-ny*tickLen}" x2="${mx+nx*tickLen}" y2="${my+ny*tickLen}" stroke="#2a1a08" stroke-width="1.2"/>`);
+    }
+  }
+
+  // Path highlight lines (on top of everything)
+  const traceLines = [];
+  const traceRecords = [
+    { rec: getCurrentMoveRecord('player'), cls: 'svg-trace-player', marker: 'trace-arrow-player' },
+    { rec: getCurrentMoveRecord('ai'), cls: 'svg-trace-ai', marker: 'trace-arrow-ai' },
+  ];
+  for (const t of traceRecords) {
+    const rec = t.rec;
+    if (!rec || !rec.from || !rec.to) continue;
+    const path = findMovePath(rec.from[0], rec.from[1], rec.to[0], rec.to[1]);
+    const points = [];
+    for (const pt of path) {
+      const center = cellCenters[`${pt[0]},${pt[1]}`];
+      if (center) points.push(`${center.x},${center.y}`);
+    }
+    if (points.length >= 2) {
+      traceLines.push(`<polyline points="${points.join(' ')}" class="${t.cls}" marker-end="url(#${t.marker})"/>`);
+    }
+  }
+
+  const hlLines = [];
+  for (const hl of svgHighlightEdges) {
+    const a = cellCenters[`${hl.from[0]},${hl.from[1]}`];
+    const b = cellCenters[`${hl.to[0]},${hl.to[1]}`];
+    if (a && b) {
+      hlLines.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="svg-path-hl"/>`);
+    }
+  }
+
+  const arrowDefs = `
+    <defs>
+      <marker id="trace-arrow-player" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,8 L8,4 z" fill="#2d7ff9"/>
+      </marker>
+      <marker id="trace-arrow-ai" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,8 L8,4 z" fill="#f29a2e"/>
+      </marker>
+    </defs>
+  `;
+
+  svg.innerHTML = arrowDefs + order.map(t => groups[t].join('')).join('') + rrMarks.join('') + traceLines.join('') + hlLines.join('');
+}
+
+/* ==============================================================
+   Path-finding for move visualization
+   ============================================================== */
+
+// Railroad position set (mirrors algorithms.py railroadPosts)
+const RR_SET = new Set();
+for (let i = 1; i <= 10; i++) { RR_SET.add(`${i},0`); RR_SET.add(`${i},4`); }
+for (let c = 0; c < 5; c++) {
+  for (const r of [1, 5, 6, 10]) RR_SET.add(`${r},${c}`);
+}
+
+// Railroad adjacency: at front-line junctions (5,1)(5,3)(6,1)(6,3) only horizontal
+function rrNeighbors(r, c) {
+  const dirs = [`5,1`,`5,3`,`6,1`,`6,3`].includes(`${r},${c}`)
+    ? [[0,-1],[0,1]]
+    : [[-1,0],[1,0],[0,-1],[0,1]];
+  const out = [];
+  for (const [dr, dc] of dirs) {
+    const nr = r+dr, nc = c+dc;
+    if (RR_SET.has(`${nr},${nc}`)) out.push([nr, nc]);
+  }
+  return out;
+}
+
+// BFS shortest path on railroad graph
+function bfsRailroadPath(fr, fc, tr, tc) {
+  const startKey = `${fr},${fc}`, endKey = `${tr},${tc}`;
+  if (!RR_SET.has(startKey) || !RR_SET.has(endKey)) return null;
+  const prev = new Map();
+  prev.set(startKey, null);
+  const queue = [[fr, fc]];
+  while (queue.length > 0) {
+    const [r, c] = queue.shift();
+    if (r === tr && c === tc) {
+      // Reconstruct path
+      const path = [];
+      let key = endKey;
+      while (key !== null) {
+        const [pr, pc] = key.split(',').map(Number);
+        path.unshift([pr, pc]);
+        key = prev.get(key);
+      }
+      return path;
+    }
+    for (const [nr, nc] of rrNeighbors(r, c)) {
+      const nk = `${nr},${nc}`;
+      if (!prev.has(nk)) {
+        prev.set(nk, `${r},${c}`);
+        queue.push([nr, nc]);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Compute the waypoint path for a move: [[r,c], [r,c], ...]
+ * - Single step: 2 waypoints
+ * - Railroad straight line: all intermediate cells
+ * - Railroad with turns (sapper): BFS shortest path
+ */
+function findMovePath(fr, fc, tr, tc) {
+  const dr = Math.abs(tr - fr), dc = Math.abs(tc - fc);
+  // Adjacent move (1 step orthogonal or diagonal)
+  if (dr <= 1 && dc <= 1) return [[fr, fc], [tr, tc]];
+  // Both on railroad → BFS for shortest path (handles straight + turns)
+  if (RR_SET.has(`${fr},${fc}`) && RR_SET.has(`${tr},${tc}`)) {
+    const path = bfsRailroadPath(fr, fc, tr, tc);
+    if (path) return path;
+  }
+  // Fallback: direct (shouldn't happen for valid moves)
+  return [[fr, fc], [tr, tc]];
+}
+
+// Convert a waypoint path to edge list (for SVG highlight)
+function pathToEdges(path) {
+  const edges = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    edges.push({ from: path[i], to: path[i + 1] });
+  }
+  return edges;
+}
+
+/* ==============================================================
+   Animation: slide ghost piece along a multi-segment path
+   ============================================================== */
+function animateMove(path, pieceText, side) {
+  return new Promise(resolve => {
+    if (path.length < 2) { resolve(); return; }
+
+    const wrapper = document.querySelector('.board-wrapper');
+    const wrapperRect = wrapper.getBoundingClientRect();
+
+    // Get pixel rects for first and all waypoints
+    const firstTd = document.querySelector(`#board td[data-row="${path[0][0]}"][data-col="${path[0][1]}"]`);
+    if (!firstTd) { resolve(); return; }
+    const firstRect = firstTd.getBoundingClientRect();
+
+    // Create ghost piece at start position
+    const ghost = document.createElement('div');
+    ghost.className = 'ghost-piece side-' + side;
+    ghost.textContent = pieceText;
+    ghost.style.width = firstRect.width + 'px';
+    ghost.style.height = firstRect.height + 'px';
+    ghost.style.left = (firstRect.left - wrapperRect.left) + 'px';
+    ghost.style.top = (firstRect.top - wrapperRect.top) + 'px';
+    wrapper.appendChild(ghost);
+
+    // Hide source cell text
+    firstTd.style.color = 'transparent';
+    firstTd.style.textShadow = 'none';
+
+    // Build keyframes from waypoint pixel positions (all relative to start)
+    const startX = firstRect.left - wrapperRect.left;
+    const startY = firstRect.top - wrapperRect.top;
+    const keyframes = [];
+    let totalDist = 0;
+    const segDists = [];
+
+    for (let i = 0; i < path.length; i++) {
+      const td = document.querySelector(`#board td[data-row="${path[i][0]}"][data-col="${path[i][1]}"]`);
+      if (!td) { ghost.remove(); resolve(); return; }
+      const rect = td.getBoundingClientRect();
+      const x = rect.left - wrapperRect.left - startX;
+      const y = rect.top - wrapperRect.top - startY;
+      if (i > 0) {
+        const prevTd = document.querySelector(`#board td[data-row="${path[i-1][0]}"][data-col="${path[i-1][1]}"]`);
+        const prevRect = prevTd.getBoundingClientRect();
+        const dx = rect.left - prevRect.left, dy = rect.top - prevRect.top;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        segDists.push(d);
+        totalDist += d;
+      }
+      keyframes.push({ transform: `translate(${x}px, ${y}px)`, opacity: 1 });
+    }
+
+    // Compute offset for each keyframe (0 to 1) proportional to cumulative distance
+    if (totalDist < 1) totalDist = 1;
+    const offsets = [0];
+    let cumDist = 0;
+    for (let i = 0; i < segDists.length; i++) {
+      cumDist += segDists[i];
+      offsets.push(cumDist / totalDist);
+    }
+    for (let i = 0; i < keyframes.length; i++) {
+      keyframes[i].offset = offsets[i];
+    }
+
+    // Duration: proportional to path length, clamped
+    const duration = Math.min(600, Math.max(200, totalDist * 0.8));
+
+    const anim = ghost.animate(keyframes, {
+      duration,
+      easing: 'linear',  // linear overall; each segment is constant speed
+      fill: 'forwards',
+    });
+
+    anim.onfinish = () => {
+      ghost.remove();
+      resolve();
+    };
+  });
+}
+
+/* ==============================================================
+   Game state
+   ============================================================== */
+let board = null;
+let selected = null;
+let legalMoves = [];
+let turn = null;
+let winner = null;
+let animating = false;
+let gameMode = 'hidden';
+let gameDifficulty = 'easy';
+let overlays = [];
+let lastPlayerMove = null;
+let lastAiMove = null;
+let lastMoveRecords = { player: null, ai: null };
+let aiDebugCurrent = null;
+let aiDebugLastTurn = null;
+const SHOW_MOVE_CURSOR_LABELS = false;
+const MAX_BATTLE_RECORDS = 40;
+let battleRecords = [];
+const moveSounds = {
+  player: new Audio('/static/player-move.ogg'),
+  ai: new Audio('/static/ai-move.ogg'),
+};
+let moveSoundUnlocked = false;
+
+moveSounds.player.preload = 'auto';
+moveSounds.ai.preload = 'auto';
+
+function unlockMoveSounds() {
+  if (moveSoundUnlocked) return;
+  moveSoundUnlocked = true;
+  [moveSounds.player, moveSounds.ai].forEach(a => {
+    const oldMuted = a.muted;
+    a.muted = true;
+    const p = a.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        a.pause();
+        a.currentTime = 0;
+        a.muted = oldMuted;
+      }).catch(() => {
+        a.muted = oldMuted;
+      });
+    } else {
+      a.pause();
+      a.currentTime = 0;
+      a.muted = oldMuted;
+    }
+  });
+}
+
+function playMoveSound(kind) {
+  if (!moveSoundUnlocked) return;
+  const audio = moveSounds[kind];
+  if (!audio) return;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    const p = audio.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (_) {}
+}
+
+document.addEventListener('pointerdown', unlockMoveSounds, { once: true });
+document.addEventListener('keydown', unlockMoveSounds, { once: true });
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function posLabel(r, c) {
+  const cols = 'ABCDE';
+  return cols[c] + (12 - r);
+}
+
+function fallbackMoveRecord(move) {
+  if (!move) return null;
+  return { from: move.from, to: move.to, piece: null };
+}
+
+function getCurrentMoveRecord(side) {
+  if (side === 'player') return lastMoveRecords.player || fallbackMoveRecord(lastPlayerMove);
+  if (side === 'ai') return lastMoveRecords.ai || fallbackMoveRecord(lastAiMove);
+  return null;
+}
+
+function isTracePointCell(r, c) {
+  const records = [getCurrentMoveRecord('player'), getCurrentMoveRecord('ai')];
+  for (const rec of records) {
+    if (!rec || !rec.from || !rec.to) continue;
+    if ((rec.from[0] === r && rec.from[1] === c) || (rec.to[0] === r && rec.to[1] === c)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getLastMoveCursorsForCell(r, c) {
+  if (!SHOW_MOVE_CURSOR_LABELS) return [];
+  const cursors = [];
+  const playerRecord = getCurrentMoveRecord('player');
+  const aiRecord = getCurrentMoveRecord('ai');
+  if (playerRecord) {
+    if (playerRecord.from[0] === r && playerRecord.from[1] === c) {
+      cursors.push({ cls: 'cursor-player-from', label: 'YF' });
+    }
+    if (playerRecord.to[0] === r && playerRecord.to[1] === c) {
+      cursors.push({ cls: 'cursor-player-to', label: 'YT' });
+    }
+  }
+  if (aiRecord) {
+    if (aiRecord.from[0] === r && aiRecord.from[1] === c) {
+      cursors.push({ cls: 'cursor-ai-from', label: 'OF' });
+    }
+    if (aiRecord.to[0] === r && aiRecord.to[1] === c) {
+      cursors.push({ cls: 'cursor-ai-to', label: 'OT' });
+    }
+  }
+  return cursors;
+}
+
+function formatSide(side) {
+  return side === 'B' ? '\u4f60' : '\u5bf9\u65b9';
+}
+
+function formatPieceName(name) {
+  return name || '\u672a\u77e5\u68cb\u5b50';
+}
+
+function battleRecordText(evt) {
+  if (!evt) return '';
+  const attacker = `${formatSide(evt.attacker_side)}:${formatPieceName(evt.attacker_name)}`;
+  const defender = `${formatSide(evt.defender_side)}:${formatPieceName(evt.defender_name)}`;
+  if (evt.kind === 'sapper_mine') return `${attacker} \u6392\u9664 ${defender}`;
+  if (evt.kind === 'mutual') return `${attacker} \u4e0e ${defender} \u540c\u5f52\u4e8e\u5c3d`;
+  if (evt.kind === 'attacker_win') return `${attacker} \u5403\u6389 ${defender}`;
+  if (evt.kind === 'defender_win') return `${defender} \u5403\u6389 ${attacker}`;
+  return '';
+}
+
+function renderBattleLog() {
+  const el = document.getElementById('battle-log');
+  if (!el) return;
+  if (!battleRecords.length) {
+    el.innerHTML = '<div class="battle-log-empty">\u6682\u65e0\u6218\u6597\u8bb0\u5f55</div>';
+    return;
+  }
+  let html = '';
+  for (let i = 0; i < battleRecords.length; i++) {
+    const item = battleRecords[i];
+    const cls = i === 0 ? 'battle-log-item battle-log-latest' : 'battle-log-item';
+    html += `<div class="${cls}">${item.text}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function appendBattleRecords(events) {
+  if (!Array.isArray(events) || events.length === 0) return;
+  for (const evt of events) {
+    const text = battleRecordText(evt);
+    if (!text) continue;
+    battleRecords.unshift({ text });
+  }
+  if (battleRecords.length > MAX_BATTLE_RECORDS) {
+    battleRecords = battleRecords.slice(0, MAX_BATTLE_RECORDS);
+  }
+  renderBattleLog();
+}
+
+const PLAN_LABELS = {
+  ATTACK_FLAG_LANE: '主攻旗路',
+  DEFEND_FLAG: '回防军旗',
+  CLEAR_MINES: '工兵拆雷',
+  TRADE_WITH_BOMB: '炸弹兑子',
+  CONTROL_RAIL: '控制铁路',
+  SIMPLIFY_ENDGAME: '残局简化',
+};
+
+function formatPlanType(planType) {
+  return PLAN_LABELS[planType] || planType || '未定计划';
+}
+
+function formatCells(cells, maxCount = 6) {
+  if (!Array.isArray(cells) || !cells.length) return '无';
+  const labels = cells.slice(0, maxCount).map(([r, c]) => posLabel(r, c));
+  if (cells.length > maxCount) labels.push('…');
+  return labels.join('、');
+}
+
+function formatDebugMove(move) {
+  if (!Array.isArray(move) || move.length !== 2) return '—';
+  return `${posLabel(move[0][0], move[0][1])} → ${posLabel(move[1][0], move[1][1])}`;
+}
+
+function formatPieceDebug(piece) {
+  if (!piece) return '空位';
+  if (piece.name) return piece.name;
+  if (piece.order === null || piece.order === undefined) return '?';
+  return `阶${piece.order}`;
+}
+
+function renderPlanBlock(plan, title) {
+  if (!plan) {
+    return `<div class="debug-plan"><div class="debug-plan-head"><span>${title}</span><span>—</span></div><div class="debug-plan-note">当前没有明确计划。</div></div>`;
+  }
+  return `
+    <div class="debug-plan">
+      <div class="debug-plan-head">
+        <span>${title}：${formatPlanType(plan.plan_type)}</span>
+        <span>P=${Number(plan.priority || 0).toFixed(1)}</span>
+      </div>
+      <div class="debug-plan-note">${plan.notes || '无备注'}</div>
+      <div class="debug-plan-cells">焦点格：${formatCells(plan.target_cells)}</div>
+    </div>
+  `;
+}
+
+function renderMetricGrid(stateFeatures) {
+  if (!stateFeatures) return '<div class="debug-empty">暂无状态特征。</div>';
+  const entries = [
+    ['阶段', stateFeatures.phase || 'unknown'],
+    ['A 可动子', stateFeatures.a_mobile],
+    ['B 可动子', stateFeatures.b_mobile],
+    ['A 旗压', Number(stateFeatures.a_flag_threat || 0).toFixed(1)],
+    ['B 旗压', Number(stateFeatures.b_flag_threat || 0).toFixed(1)],
+    ['A 通路压', Number(stateFeatures.a_lane_pressure || 0).toFixed(1)],
+    ['B 通路压', Number(stateFeatures.b_lane_pressure || 0).toFixed(1)],
+    ['中线控制', Number(stateFeatures.center_control || 0).toFixed(1)],
+  ];
+  return `<div class="debug-grid">${entries.map(([label, value]) => `<div class="debug-metric"><span>${label}</span><strong>${value}</strong></div>`).join('')}</div>`;
+}
+
+function renderEvalBreakdown(evaluation) {
+  if (!evaluation || !evaluation.components) return '<div class="debug-empty">暂无评估分解。</div>';
+  const entries = Object.entries(evaluation.components)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 8);
+  const rows = entries.map(([label, value]) => `<div class="debug-metric"><span>${label}</span><strong>${Number(value).toFixed(2)}</strong></div>`).join('');
+  return `
+    <div class="debug-plan">
+      <div class="debug-plan-head"><span>总评估</span><span>${Number(evaluation.total || 0).toFixed(2)}</span></div>
+      <div class="debug-grid">${rows}</div>
+    </div>
+  `;
+}
+
+function renderCandidateList(candidates) {
+  if (!Array.isArray(candidates) || !candidates.length) {
+    return '<div class="debug-empty">暂无候选步搜索记录。</div>';
+  }
+  return candidates.map((item, index) => {
+    const reasonText = Array.isArray(item.reasons) && item.reasons.length
+      ? item.reasons.map(r => `${r.label}:${Number(r.score).toFixed(1)}`).join('，')
+      : '无显著排序因子';
+    const tagHtml = Array.isArray(item.tags) && item.tags.length
+      ? `<div class="debug-tags">${item.tags.map(tag => `<span class="debug-tag">${tag}</span>`).join('')}</div>`
+      : '';
+    return `
+      <div class="debug-candidate ${item.selected ? 'selected' : ''}">
+        <div class="debug-candidate-head">
+          <span>#${index + 1} ${formatDebugMove(item.move)}${item.selected ? '  ← 选中' : ''}</span>
+          <span>${item.search_score === null || item.search_score === undefined ? '排序' : '搜索'}:${item.search_score === null || item.search_score === undefined ? Number(item.order_score || 0).toFixed(1) : Number(item.search_score).toFixed(2)}</span>
+        </div>
+        <div class="debug-candidate-meta">
+          行棋子：${formatPieceDebug(item.piece)}，目标：${formatPieceDebug(item.target)}，排序分：${Number(item.order_score || 0).toFixed(1)}，战术延伸：${item.tactical ? '是' : '否'}
+        </div>
+        ${tagHtml}
+        <div class="debug-reasons">主要理由：${reasonText}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getSelectedCandidate(lastTurn) {
+  if (!lastTurn || !Array.isArray(lastTurn.candidates)) return null;
+  const picked = lastTurn.candidates.find(item => item.selected);
+  return picked || lastTurn.candidates[0] || null;
+}
+
+function getAlternativeCandidates(lastTurn, limit = 2) {
+  if (!lastTurn || !Array.isArray(lastTurn.candidates)) return [];
+  return lastTurn.candidates.filter(item => !item.selected).slice(0, limit);
+}
+
+function renderDecisionFocus(lastTurn) {
+  if (!lastTurn) {
+    return `
+      <div class="debug-focus">
+        <div class="debug-focus-title">AI 走棋原因</div>
+        <div class="debug-focus-main">AI 还没有走过棋。开始对局后，这里会直接解释它最近一步的动机。</div>
+      </div>
+    `;
+  }
+
+  const chosen = getSelectedCandidate(lastTurn);
+  if (!chosen) {
+    return `
+      <div class="debug-focus">
+        <div class="debug-focus-title">AI 走棋原因</div>
+        <div class="debug-focus-main">这一步没有记录到可解释的候选步。</div>
+      </div>
+    `;
+  }
+
+  const primaryPlan = lastTurn.plan_bundle && lastTurn.plan_bundle.primary;
+  const topReasons = Array.isArray(chosen.reasons) ? chosen.reasons.slice(0, 3) : [];
+  const topTags = Array.isArray(chosen.tags) ? chosen.tags.slice(0, 3) : [];
+  const alternatives = getAlternativeCandidates(lastTurn, 2);
+
+  let html = `
+    <div class="debug-focus">
+      <div class="debug-focus-title">AI 走棋原因</div>
+      <div class="debug-focus-main">
+        AI 最近一步选择了 <strong>${formatDebugMove(chosen.move)}</strong>。
+        ${primaryPlan ? `当前主计划是“${formatPlanType(primaryPlan.plan_type)}”。` : ''}
+        ${chosen.search_score !== null && chosen.search_score !== undefined ? `这步在根搜索中的分数是 <strong>${Number(chosen.search_score).toFixed(2)}</strong>。` : `这步当前排序分是 <strong>${Number(chosen.order_score || 0).toFixed(1)}</strong>。`}
+      </div>
+  `;
+
+  if (topTags.length || topReasons.length) {
+    html += '<div class="debug-focus-list">';
+    if (topTags.length) {
+      html += `<div class="debug-focus-item">直观标签：${topTags.join('、')}</div>`;
+    }
+    if (topReasons.length) {
+      html += `<div class="debug-focus-item">主要打分来源：${topReasons.map(r => `${r.label} ${Number(r.score).toFixed(1)}`).join('，')}</div>`;
+    }
+    if (chosen.tactical) {
+      html += '<div class="debug-focus-item">这步被视为战术关键点，所以叶子会继续做战术延伸，而不是立刻静态打分。</div>';
+    }
+    html += '</div>';
+  }
+
+  if (alternatives.length) {
+    html += '<div class="debug-focus-list">';
+    for (const alt of alternatives) {
+      const altScore = alt.search_score !== null && alt.search_score !== undefined
+        ? Number(alt.search_score).toFixed(2)
+        : Number(alt.order_score || 0).toFixed(1);
+      const altReason = Array.isArray(alt.tags) && alt.tags.length
+        ? alt.tags.slice(0, 2).join('、')
+        : '缺少更强理由';
+      html += `<div class="debug-focus-item">备选 ${formatDebugMove(alt.move)} 没被选中：分数 ${altScore}，主要方向是 ${altReason}。</div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderDebugPanel() {
+  const panel = document.getElementById('debug-panel');
+  const statusEl = document.getElementById('debug-status');
+  if (!panel || !statusEl) return;
+  if (!board) {
+    statusEl.textContent = '等待棋局';
+    panel.innerHTML = '<div class="debug-empty">开始一局后，这里会显示 AI 的计划、评估和候选步。</div>';
+    return;
+  }
+
+  const current = aiDebugCurrent;
+  const lastTurn = aiDebugLastTurn;
+  statusEl.textContent = lastTurn && lastTurn.best_move ? `上一手：${formatDebugMove(lastTurn.best_move)}` : '当前局面分析';
+
+  const currentPlan = current && current.plan_bundle ? current.plan_bundle : null;
+  const currentEval = current && current.evaluation ? current.evaluation : null;
+  const currentState = current && current.state_features ? current.state_features : null;
+  let html = '';
+
+  html += renderDecisionFocus(lastTurn);
+  html += '<div class="debug-section"><div class="debug-section-title">当前状态</div>' + renderMetricGrid(currentState) + '</div>';
+
+  html += '<div class="debug-section"><div class="debug-section-title">当前计划</div>';
+  if (currentPlan) {
+    html += renderPlanBlock(currentPlan.primary, '主计划');
+    html += renderPlanBlock(currentPlan.secondary, '备用计划');
+  } else {
+    html += '<div class="debug-empty">暂无当前计划。</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="debug-section"><div class="debug-section-title">评估拆分</div>' + renderEvalBreakdown(currentEval) + '</div>';
+
+  html += '<div class="debug-section"><div class="debug-section-title">上一手 AI 搜索</div>';
+  if (lastTurn) {
+    html += renderPlanBlock(lastTurn.plan_bundle ? lastTurn.plan_bundle.primary : null, '搜索主计划');
+    html += renderPlanBlock(lastTurn.plan_bundle ? lastTurn.plan_bundle.secondary : null, '搜索备用计划');
+    html += renderCandidateList(lastTurn.candidates);
+  } else {
+    html += '<div class="debug-empty">AI 还没有走过棋，暂无搜索记录。</div>';
+  }
+  html += '</div>';
+
+  panel.innerHTML = html;
+}
+
+async function refreshAiDebug() {
+  if (!board || animating) return;
+  try {
+    const res = await fetch('/api/ai-debug');
+    const data = await res.json();
+    aiDebugCurrent = data.current;
+    aiDebugLastTurn = data.last_turn;
+    renderDebugPanel();
+  } catch (_) {}
+}
+
+function initOptionButtons() {
+  const groups = document.querySelectorAll('.new-game-section .option-group');
+  for (const group of groups) {
+    const buttons = group.querySelectorAll('.opt-btn');
+    for (const btn of buttons) {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        target.value = btn.dataset.value;
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    }
+  }
+}
+
+async function startGame() {
+  gameMode = document.getElementById('opt-mode').value;
+  gameDifficulty = document.getElementById('opt-diff').value;
+  const res = await fetch('/api/new-game', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({difficulty: gameDifficulty, mode: gameMode})
+  });
+  const data = await res.json();
+  board = data.board;
+  turn = data.turn;
+  winner = data.winner;
+  gameMode = data.mode;
+  selected = null;
+  legalMoves = [];
+  overlays = [];
+  svgHighlightEdges = [];
+  animating = false;
+  lastPlayerMove = null;
+  lastAiMove = null;
+  lastMoveRecords = { player: null, ai: null };
+  aiDebugCurrent = data.ai_debug_current || null;
+  aiDebugLastTurn = data.ai_debug_last_turn || null;
+  battleRecords = [];
+  render();
+  updatePanel();
+  renderBattleLog();
+  renderDebugPanel();
+}
+
+function updatePanel() {
+  document.getElementById('s-mode').textContent = gameMode === 'open' ? '明手' : '暗手';
+  document.getElementById('s-diff').textContent = gameDifficulty === 'hard' ? '困难' : '简单';
+  const turnEl = document.getElementById('turn-display');
+  const resultEl = document.getElementById('result-display');
+  resultEl.innerHTML = '';
+  if (!board) {
+    turnEl.textContent = '等待开始'; turnEl.className = 'turn-indicator';
+  } else if (winner) {
+    turnEl.textContent = '';
+    const div = document.createElement('div');
+    div.className = winner === 'B' ? 'result result-win' : 'result result-lose';
+    div.textContent = winner === 'B' ? '你赢了！' : '你输了！';
+    resultEl.appendChild(div);
+  } else if (animating) {
+    turnEl.textContent = 'AI 思考中…';
+    turnEl.className = 'turn-indicator turn-thinking';
+  } else if (turn === 'B') {
+    turnEl.textContent = '你的回合';
+    turnEl.className = 'turn-indicator turn-player';
+  } else {
+    turnEl.textContent = 'AI 回合';
+    turnEl.className = 'turn-indicator turn-ai';
+  }
+  const moveCard = document.getElementById('move-card');
+  const moveEl = document.getElementById('last-move');
+  if (lastPlayerMove || lastAiMove) {
+    moveCard.style.display = '';
+    let html = '';
+    if (lastPlayerMove) {
+      const pm = lastPlayerMove;
+      html += '<div class="player-move">你：' + posLabel(pm.from[0],pm.from[1]) + ' → ' + posLabel(pm.to[0],pm.to[1]) + '</div>';
+    }
+    if (lastAiMove) {
+      const am = lastAiMove;
+      html += '<div class="ai-move-text">AI：' + posLabel(am.from[0],am.from[1]) + ' → ' + posLabel(am.to[0],am.to[1]) + '</div>';
+    }
+    moveEl.innerHTML = html;
+  } else {
+    moveCard.style.display = 'none';
+  }
+  renderDebugPanel();
+}
+
+function render() {
+  const table = document.getElementById('board');
+  table.innerHTML = '';
+  if (!board) { document.getElementById('board-svg').innerHTML = ''; return; }
+  for (let r = 0; r < 12; r++) {
+    if (r === 6) {
+      const sep = document.createElement('tr');
+      sep.className = 'river';
+      for (let c = 0; c < 5; c++) sep.appendChild(document.createElement('td'));
+      table.appendChild(sep);
+    }
+    const tr = document.createElement('tr');
+    for (let c = 0; c < 5; c++) {
+      const td = document.createElement('td');
+      const cell = board[r][c];
+      td.className = cell.type;
+      if (cell.piece) {
+        td.classList.add('side-' + cell.piece.side);
+        td.textContent = cell.piece.name || '?';
+      } else {
+        td.classList.add('empty');
+        if (cell.type === 'camp') td.textContent = '营';
+        else if (cell.type === 'hq') td.textContent = '营';
+      }
+      if (selected && selected.row === r && selected.col === c) td.classList.add('selected');
+      if (legalMoves.some(m => m[0] === r && m[1] === c)) td.classList.add('highlight');
+      if (isTracePointCell(r, c)) td.classList.add('trace-point');
+      for (const o of overlays) {
+        if (o.row === r && o.col === c) td.classList.add(o.cls);
+      }
+      const moveCursors = getLastMoveCursorsForCell(r, c);
+      for (const cur of moveCursors) {
+        const marker = document.createElement('span');
+        marker.className = `move-cursor ${cur.cls}`;
+        marker.textContent = cur.label;
+        td.appendChild(marker);
+      }
+      td.dataset.row = r;
+      td.dataset.col = c;
+      td.addEventListener('click', onCellClick);
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+  requestAnimationFrame(renderSVG);
+}
+
+async function onCellClick(e) {
+  if (!board || winner || animating) return;
+  if (turn !== 'B') return;
+  const r = parseInt(e.currentTarget.dataset.row);
+  const c = parseInt(e.currentTarget.dataset.col);
+  if (selected && legalMoves.some(m => m[0] === r && m[1] === c)) {
+    // Lock immediately before any await to prevent double-fire
+    animating = true;
+    await makeMove(selected.row, selected.col, r, c);
+    return;
+  }
+  const cell = board[r][c];
+  if (cell.piece && cell.piece.side === 'B') {
+    selected = {row: r, col: c};
+    const res = await fetch(`/api/legal-moves?row=${r}&col=${c}`);
+    // Re-check state after await — a concurrent click may have changed things
+    if (animating || winner) return;
+    const data = await res.json();
+    legalMoves = data.moves;
+    overlays = [];
+    svgHighlightEdges = [];
+    render();
+    return;
+  }
+  selected = null;
+  legalMoves = [];
+  overlays = [];
+  svgHighlightEdges = [];
+  render();
+}
+
+/* ==============================================================
+   makeMove — the full animated turn sequence
+   ============================================================== */
+async function makeMove(fr, fc, tr, tc) {
+  // animating is already true (set by onCellClick before calling us)
+  try {
+    // Capture pre-move info
+    const movingPiece = board[fr][fc].piece;
+    const targetHadPiece = board[tr][tc].piece != null;
+    const pieceText = movingPiece.name || '?';
+    const pieceSide = movingPiece.side;
+
+    selected = null;
+    legalMoves = [];
+    updatePanel();
+
+    // ---- Phase 1: highlight + path + player slide animation ----
+    const playerPath = findMovePath(fr, fc, tr, tc);
+    overlays = [
+      { row: fr, col: fc, cls: 'move-from' },
+      { row: tr, col: tc, cls: 'move-to' },
+    ];
+    svgHighlightEdges = pathToEdges(playerPath);
+    render();
+
+    // Fire API in background — do NOT await yet
+    const apiPromise = fetch('/api/move', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({from_row: fr, from_col: fc, to_row: tr, to_col: tc})
+    }).then(r => r.json());
+
+    await delay(150);
+    playMoveSound('player');
+    await animateMove(playerPath, pieceText, pieceSide);
+
+    // ---- Phase 2: optimistic local update for player move ----
+    // Apply player move locally so the user sees the result immediately,
+    // even if the API (which includes AI thinking) hasn't returned yet.
+    const preBoard = board; // save in case we need it
+    // Move piece locally
+    const localBoard = JSON.parse(JSON.stringify(board));
+    if (localBoard[tr][tc].piece === null || localBoard[tr][tc].piece.side === pieceSide) {
+      // Simple move to empty cell (or own piece — shouldn't happen but safe)
+      localBoard[tr][tc].piece = localBoard[fr][fc].piece;
+      localBoard[fr][fc].piece = null;
+    } else {
+      // Capture — we don't know the exact outcome, just clear source
+      // The real result comes from the API; for now show the moving piece at destination
+      localBoard[tr][tc].piece = localBoard[fr][fc].piece;
+      localBoard[fr][fc].piece = null;
+    }
+    board = localBoard;
+    lastPlayerMove = { from: [fr, fc], to: [tr, tc] };
+    lastAiMove = null;
+    lastMoveRecords.player = {
+      from: [fr, fc],
+      to: [tr, tc],
+      piece: { name: pieceText, side: pieceSide, order: movingPiece.order }
+    };
+    lastMoveRecords.ai = null;
+    overlays = [
+      { row: fr, col: fc, cls: 'move-from' },
+      { row: tr, col: tc, cls: 'move-to' },
+    ];
+    svgHighlightEdges = [];
+    render();
+    updatePanel();
+
+    if (targetHadPiece) {
+      const dstTd = document.querySelector(`#board td[data-row="${tr}"][data-col="${tc}"]`);
+      if (dstTd) dstTd.classList.add('capture-effect');
+    }
+
+    await delay(500);
+
+    // ---- Phase 3: show "AI thinking" while waiting for API ----
+    overlays = [];
+    svgHighlightEdges = [];
+    render();
+    updatePanel(); // shows "AI 思考中..." because animating is still true
+
+    // NOW wait for API (may already be done, or may take seconds on hard mode)
+    const data = await apiPromise;
+    appendBattleRecords(data.battle_events);
+    aiDebugCurrent = data.ai_debug_current || null;
+    aiDebugLastTurn = data.ai_debug_last_turn || aiDebugLastTurn;
+
+    // Apply the real board_after_player (corrects any optimistic inaccuracy)
+    board = data.board_after_player;
+    lastPlayerMove = data.player_move;
+    lastMoveRecords.player = (data.move_records && data.move_records.player) ? data.move_records.player : fallbackMoveRecord(data.player_move);
+    lastMoveRecords.ai = null;
+    render();
+
+    // ---- Phase 4: AI animation ----
+    if (data.ai_move && !data.winner) {
+      const aiFrom = data.ai_move.from;
+      const aiTo = data.ai_move.to;
+      const aiCell = data.board_after_player[aiFrom[0]][aiFrom[1]];
+      const aiPieceText = (aiCell.piece && aiCell.piece.name) ? aiCell.piece.name : '?';
+      const aiPieceSide = aiCell.piece ? aiCell.piece.side : 'A';
+      const aiTargetHad = data.board_after_player[aiTo[0]][aiTo[1]].piece != null;
+
+      const aiPath = findMovePath(aiFrom[0], aiFrom[1], aiTo[0], aiTo[1]);
+      overlays = [
+        { row: aiFrom[0], col: aiFrom[1], cls: 'ai-from' },
+        { row: aiTo[0], col: aiTo[1], cls: 'ai-to' },
+      ];
+      svgHighlightEdges = pathToEdges(aiPath);
+      render();
+
+      await delay(150);
+      playMoveSound('ai');
+      await animateMove(aiPath, aiPieceText, aiPieceSide);
+
+      // ---- Phase 5: apply AI result ----
+      board = data.board;
+      turn = data.turn;
+      winner = data.winner;
+      lastAiMove = data.ai_move;
+      lastMoveRecords.ai = (data.move_records && data.move_records.ai) ? data.move_records.ai : fallbackMoveRecord(data.ai_move);
+      overlays = [
+        { row: aiFrom[0], col: aiFrom[1], cls: 'ai-from' },
+        { row: aiTo[0], col: aiTo[1], cls: 'ai-to' },
+      ];
+      svgHighlightEdges = [];
+      render();
+      updatePanel();
+
+      if (aiTargetHad) {
+        const dstTd = document.querySelector(`#board td[data-row="${aiTo[0]}"][data-col="${aiTo[1]}"]`);
+        if (dstTd) dstTd.classList.add('capture-effect');
+      }
+
+      await delay(500);
+      overlays = [];
+    } else {
+      lastAiMove = data.ai_move;
+      lastMoveRecords.ai = (data.move_records && data.move_records.ai) ? data.move_records.ai : fallbackMoveRecord(data.ai_move);
+      overlays = [];
+    }
+
+    // ---- Phase 6: final state ----
+    board = data.board;
+    turn = data.turn;
+    winner = data.winner;
+    svgHighlightEdges = [];
+    render();
+    updatePanel();
+
+  } finally {
+    // ALWAYS release the lock, even if an error occurred
+    animating = false;
+    render();
+    updatePanel();
+  }
+}
+initOptionButtons();
+renderBattleLog();
+renderDebugPanel();
+</script>
+</body>
+</html>
