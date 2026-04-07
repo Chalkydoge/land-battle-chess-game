@@ -38,6 +38,26 @@ You can also start it from a terminal:
 
 To stop the game, close the terminal window or press `Ctrl+C`.
 
+## One-Click Update And Run (For Other Machines)
+
+If this project was cloned by Git on another machine, you can update to the latest code and start the app in one click.
+
+### Recommended way
+
+Double-click [update-and-run.bat](update-and-run.bat).
+
+This script will:
+- check that the folder is a Git repository
+- abort when local uncommitted changes exist (to avoid overwrite)
+- pull the latest code by fast-forward only
+- start the local launcher automatically after update
+
+You can also run it in PowerShell:
+
+```powershell
+.\update-and-run.ps1
+```
+
 ## Requirements
 
 - Windows
