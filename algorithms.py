@@ -41,22 +41,18 @@ KEY_CELLS = {
 }
 PROFILE_SETTINGS = {
     "fast": {
-        "time_limit": 0.9,
-        "qdepth": 2,
-        "mobility_weight": 0.12,
-        "advance_weight": 0.16,
+        "time_limit": 2.0,
+        "qdepth": 3,
+        "advance_weight": 0.2,
         "control_weight": 1.5,
-        "pressure_weight": 0.45,
-        "danger_weight": 0.75,
+        "threat_weight": 1.0,
     },
     "strong": {
-        "time_limit": 4.2,
-        "qdepth": 4,
-        "mobility_weight": 0.2,
-        "advance_weight": 0.22,
-        "control_weight": 2.2,
-        "pressure_weight": 0.75,
-        "danger_weight": 1.15,
+        "time_limit": 5.0,
+        "qdepth": 5,
+        "advance_weight": 0.25,
+        "control_weight": 2.0,
+        "threat_weight": 1.2,
     },
 }
 
@@ -394,136 +390,145 @@ def _leaf_score(board):
     return quiescence_search(board, "A", -INF, INF, _profile_value("qdepth"))
 
 
+# Adjacency directions for fast threat detection
+_ADJ_DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+
 def getBoardScore(board, include_mobility=True):
+    """Fast static evaluation — NO isLegal() calls, pure board scan O(60)."""
     largestA, largestB = getLargestPiece(board)
-    material = 0.0
-    mobilityA = 0
-    mobilityB = 0
-    advanceA = 0
-    advanceB = 0
-    controlA = defaultdict(int)
-    controlB = defaultdict(int)
-    winningA = defaultdict(float)
-    winningB = defaultdict(float)
-    tradeA = defaultdict(float)
-    tradeB = defaultdict(float)
+    adv_w = _profile_value("advance_weight")
+    ctrl_w = _profile_value("control_weight")
+    threat_w = _profile_value("threat_weight")
+
+    score = 0.0
     flagA = None
     flagB = None
-    pressure = 0.0
-    board_control = 0.0
 
+    # --- Single pass: material + positional + adjacency threats ---
     for x in range(12):
         for y in range(5):
             piece = board[x][y].piece
-            if piece == None:
+            if piece is None:
                 continue
+
+            is_a = piece.side == "A"
+            sign = 1 if is_a else -1
+            largest_opp = largestB if is_a else largestA
+
+            # Material score
+            score += sign * _piece_score(piece, largest_opp)
+
+            # Track flags
             if piece.order == 0:
-                if piece.side == "A":
+                if is_a:
                     flagA = (x, y)
                 else:
                     flagB = (x, y)
-            if piece.side == "A":
-                material += _piece_score(piece, largestB)
-                advanceA += _advance_score(piece, x)
-            else:
-                material -= _piece_score(piece, largestA)
-                advanceB += _advance_score(piece, x)
-            if (x, y) in KEY_CELLS and piece.order not in (0, 10):
-                board_control += 1.2 if piece.side == "A" else -1.2
-            if isinstance(board[x][y], Camp):
-                board_control += 0.9 if piece.side == "A" else -0.9
-            if piece.order not in (0, 10) and not isinstance(board[x][y], Headquarters):
-                moves = isLegal(board, (x, y))
-                if include_mobility:
-                    if piece.side == "A":
-                        mobilityA += len(moves)
-                    else:
-                        mobilityB += len(moves)
-                if piece.side == "A" and flagB != None:
-                    pressure += max(0, 8 - (abs(x - flagB[0]) + abs(y - flagB[1]))) * 0.8
-                elif piece.side == "B" and flagA != None:
-                    pressure -= max(0, 8 - (abs(x - flagA[0]) + abs(y - flagA[1]))) * 0.8
-                for (a, b) in moves:
-                    if piece.side == "A":
-                        controlA[(a, b)] += 1
-                    else:
-                        controlB[(a, b)] += 1
-                    target = board[a][b].piece
-                    if target != None and target.side != piece.side:
-                        swing = _capture_swing(piece, target, largestB if piece.side == "A" else largestA)
-                        if piece.side == "A":
-                            pressure += swing * 0.12
-                            outcome = _combat_outcome(piece, target)
-                            if outcome > 0:
-                                winningA[(a, b)] += 1.0
-                            elif outcome == 0:
-                                tradeA[(a, b)] += 1.0
-                        else:
-                            pressure -= swing * 0.12
-                            outcome = _combat_outcome(piece, target)
-                            if outcome > 0:
-                                winningB[(a, b)] += 1.0
-                            elif outcome == 0:
-                                tradeB[(a, b)] += 1.0
-
-    danger = 0.0
-    flag_safety = 0.0
-    for x in range(12):
-        for y in range(5):
-            piece = board[x][y].piece
-            if piece == None:
                 continue
-            piece_value = _piece_score(piece, largestB if piece.side == "A" else largestA)
-            if piece.side == "A":
-                enemy_winning = winningB[(x, y)]
-                enemy_trade = tradeB[(x, y)]
-                friendly_cover = controlA[(x, y)]
-                local_danger = piece_value * (enemy_winning * 0.32 + enemy_trade * 0.18) - friendly_cover * 1.4
-                danger -= max(0.0, local_danger)
-            else:
-                enemy_winning = winningA[(x, y)]
-                enemy_trade = tradeA[(x, y)]
-                friendly_cover = controlB[(x, y)]
-                local_danger = piece_value * (enemy_winning * 0.32 + enemy_trade * 0.18) - friendly_cover * 1.4
-                danger += max(0.0, local_danger)
 
-    if flagA != None:
-        flag_safety -= winningB[flagA] * 500
-        flag_safety -= tradeB[flagA] * 180
-        flag_safety += controlA[flagA] * 24
-    if flagB != None:
-        flag_safety += winningA[flagB] * 500
-        flag_safety += tradeA[flagB] * 180
-        flag_safety -= controlB[flagB] * 24
+            # Mines: material only, no positional value
+            if piece.order == 10:
+                continue
 
-    score = material
-    score += int((advanceA - advanceB) * _profile_value("advance_weight"))
-    if include_mobility:
-        score += int((mobilityA - mobilityB) * _profile_value("mobility_weight"))
-    score += int(board_control * _profile_value("control_weight"))
-    score += int(pressure * _profile_value("pressure_weight"))
-    score += int(danger * _profile_value("danger_weight"))
-    score += int(flag_safety)
-    return score
+            # Advancement bonus
+            score += sign * _advance_score(piece, x) * adv_w
+
+            # Key cells / camp control
+            if (x, y) in KEY_CELLS:
+                score += sign * ctrl_w
+            if isinstance(board[x][y], Camp):
+                score += sign * ctrl_w * 0.75
+
+            # Adjacency-based threat detection (replaces expensive isLegal)
+            if not isinstance(board[x][y], Headquarters):
+                piece_val = _piece_score(piece, largest_opp)
+                for dx, dy in _ADJ_DIRS:
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < 12 and 0 <= ny < 5):
+                        continue
+                    neighbor = board[nx][ny].piece
+                    if neighbor is None or neighbor.side == piece.side:
+                        continue
+                    # Pieces in camps are protected
+                    if isinstance(board[nx][ny], Camp):
+                        continue
+                    neighbor_val = _piece_score(
+                        neighbor, largest_opp)
+                    outcome = _combat_outcome(piece, neighbor)
+                    if outcome > 0:
+                        # Can capture this neighbor — opportunity
+                        score += sign * neighbor_val * 0.15 * threat_w
+                    elif outcome == 0:
+                        # Mutual destruction — net value matters
+                        score += sign * (neighbor_val -
+                                         piece_val) * 0.08 * threat_w
+                    else:
+                        # Would lose — danger
+                        score -= sign * piece_val * 0.12 * threat_w
+
+    # --- Flag safety ---
+    for flag_pos, flag_side in [(flagA, "A"), (flagB, "B")]:
+        if flag_pos is None:
+            continue
+        fx, fy = flag_pos
+        sign = 1 if flag_side == "A" else -1
+        opp_largest = largestB if flag_side == "A" else largestA
+
+        # Immediate adjacency: protectors and attackers
+        for dx, dy in _ADJ_DIRS:
+            nx, ny = fx + dx, fy + dy
+            if 0 <= nx < 12 and 0 <= ny < 5:
+                n = board[nx][ny].piece
+                if n is not None:
+                    if n.side == flag_side:
+                        score += sign * 25
+                    else:
+                        score -= sign * 100
+
+        # Nearby enemies (Manhattan distance 2-3): pressure on flag
+        for x2 in range(max(0, fx - 3), min(12, fx + 4)):
+            for y2 in range(max(0, fy - 3), min(5, fy + 4)):
+                dist = abs(x2 - fx) + abs(y2 - fy)
+                if dist < 2 or dist > 3:
+                    continue
+                n = board[x2][y2].piece
+                if n is not None and n.side != flag_side and n.order not in (0, 10, None):
+                    pv = _piece_score(n, opp_largest)
+                    score -= sign * pv * (4 - dist) * 0.03
+
+    return int(score)
 
 
 
 def _terminal_score(board, ply=0):
     has_flag_a = False
     has_flag_b = False
+    mobile_a = False
+    mobile_b = False
     for x in range(12):
         for y in range(5):
             piece = board[x][y].piece
-            if piece != None and piece.order == 0:
+            if piece is None:
+                continue
+            if piece.order == 0:
                 if piece.side == "A":
                     has_flag_a = True
                 else:
                     has_flag_b = True
+            elif piece.order != 10 and not isinstance(board[x][y], Headquarters):
+                if piece.side == "A":
+                    mobile_a = True
+                else:
+                    mobile_b = True
     if not has_flag_a:
         return -MATE_SCORE + ply
     if not has_flag_b:
         return MATE_SCORE - ply
-
+    # Both sides have potentially mobile pieces — not terminal (fast path)
+    if mobile_a and mobile_b:
+        return None
+    # Rare: one side may have only immovable pieces left — full check needed
     winner = isOver(board)
     if winner == "A":
         return MATE_SCORE - ply
@@ -669,7 +674,7 @@ def quiescence_search(board, side, alpha, beta, qdepth):
     return best
 
 
-def _alpha_beta(board, side, depth_left, alpha, beta, ply=0):
+def _alpha_beta(board, side, depth_left, alpha, beta, ply=0, allow_null=True):
     global NODE_COUNT
     NODE_COUNT += 1
     if _is_search_timeout():
@@ -689,6 +694,19 @@ def _alpha_beta(board, side, depth_left, alpha, beta, ply=0):
     if tt_hit != None:
         return tt_hit
 
+    # --- Null Move Pruning (NMP) ---
+    # Skip our turn and see if opponent can still beat us.
+    # If not, this position is so good we can prune.
+    if allow_null and depth_left >= 3 and ply > 0:
+        null_side = "B" if side == "A" else "A"
+        R = 2 if depth_left <= 5 else 3
+        _, null_score = _alpha_beta(
+            board, null_side, depth_left - 1 - R, alpha, beta, ply + 1, False)
+        if side == "A" and null_score >= beta:
+            return (None, null_score)
+        elif side == "B" and null_score <= alpha:
+            return (None, null_score)
+
     moves = _ordered_moves(board, side, tt_move=tt_move, ply=ply)
     if len(moves) == 0:
         return (None, getBoardScore(board, include_mobility=False))
@@ -696,11 +714,26 @@ def _alpha_beta(board, side, depth_left, alpha, beta, ply=0):
     bestMove = None
     if side == "A":
         bestScore = -INF
-        for fr, fc, tr, tc in moves:
+        for i, (fr, fc, tr, tc) in enumerate(moves):
             move = (fr, fc, tr, tc)
+            is_capture = board[tr][tc].piece is not None
+
+            # --- Late Move Reduction (LMR) ---
+            reduction = 0
+            if (i >= 4 and not is_capture and depth_left >= 3
+                    and move != tt_move):
+                reduction = 1
+
             fromPost, toPost = applyMove(board, fr, fc, tr, tc)
             try:
-                _, childScore = _alpha_beta(board, "B", depth_left - 1, alpha, beta, ply + 1)
+                _, childScore = _alpha_beta(
+                    board, "B", depth_left - 1 - reduction,
+                    alpha, beta, ply + 1)
+                # Re-search at full depth if reduced search looks promising
+                if reduction > 0 and childScore > alpha:
+                    _, childScore = _alpha_beta(
+                        board, "B", depth_left - 1,
+                        alpha, beta, ply + 1)
             finally:
                 undoMove(board, fr, fc, tr, tc, fromPost, toPost)
             if childScore > bestScore:
@@ -708,17 +741,30 @@ def _alpha_beta(board, side, depth_left, alpha, beta, ply=0):
                 bestMove = move
             alpha = max(alpha, bestScore)
             if alpha >= beta:
-                if toPost == None:
+                if toPost is None:
                     _record_killer(ply, move)
                 _record_history(side, move, depth_left)
                 break
     else:
         bestScore = INF
-        for fr, fc, tr, tc in moves:
+        for i, (fr, fc, tr, tc) in enumerate(moves):
             move = (fr, fc, tr, tc)
+            is_capture = board[tr][tc].piece is not None
+
+            reduction = 0
+            if (i >= 4 and not is_capture and depth_left >= 3
+                    and move != tt_move):
+                reduction = 1
+
             fromPost, toPost = applyMove(board, fr, fc, tr, tc)
             try:
-                _, childScore = _alpha_beta(board, "A", depth_left - 1, alpha, beta, ply + 1)
+                _, childScore = _alpha_beta(
+                    board, "A", depth_left - 1 - reduction,
+                    alpha, beta, ply + 1)
+                if reduction > 0 and childScore < beta:
+                    _, childScore = _alpha_beta(
+                        board, "A", depth_left - 1,
+                        alpha, beta, ply + 1)
             finally:
                 undoMove(board, fr, fc, tr, tc, fromPost, toPost)
             if childScore < bestScore:
@@ -726,7 +772,7 @@ def _alpha_beta(board, side, depth_left, alpha, beta, ply=0):
                 bestMove = move
             beta = min(beta, bestScore)
             if alpha >= beta:
-                if toPost == None:
+                if toPost is None:
                     _record_killer(ply, move)
                 _record_history(side, move, depth_left)
                 break
@@ -813,8 +859,14 @@ def _root_search(board, side, maxDepth, alpha, beta, prev_move=None):
         return (None, terminalScore)
 
     KILLER_MOVES.clear()
-    HISTORY_TABLE.clear()
-    TRANSPOSITION_TABLE.clear()
+    # Decay history table instead of clearing — retain learned move preferences
+    for key in list(HISTORY_TABLE):
+        HISTORY_TABLE[key] //= 4
+        if HISTORY_TABLE[key] == 0:
+            del HISTORY_TABLE[key]
+    # Keep transposition table across turns; only clear if too large
+    if len(TRANSPOSITION_TABLE) > 200000:
+        TRANSPOSITION_TABLE.clear()
     NODE_COUNT = 0
     LAST_COMPLETED_DEPTH = 0
     SEARCH_DEADLINE = time.perf_counter() + _profile_value("time_limit")
@@ -825,7 +877,20 @@ def _root_search(board, side, maxDepth, alpha, beta, prev_move=None):
     try:
         for targetDepth in range(1, maxDepth + 1):
             try:
-                move, score = _alpha_beta(board, side, targetDepth, alpha, beta, 0)
+                # Aspiration window: narrow search around previous score
+                if targetDepth >= 3 and bestMove is not None:
+                    asp = 40
+                    a_asp = bestScore - asp
+                    b_asp = bestScore + asp
+                    move, score = _alpha_beta(
+                        board, side, targetDepth, a_asp, b_asp, 0)
+                    # Fall outside window — re-search with full bounds
+                    if move is None or score <= a_asp or score >= b_asp:
+                        move, score = _alpha_beta(
+                            board, side, targetDepth, alpha, beta, 0)
+                else:
+                    move, score = _alpha_beta(
+                        board, side, targetDepth, alpha, beta, 0)
             except TimeoutError:
                 timed_out = True
                 break

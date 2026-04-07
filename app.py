@@ -62,66 +62,128 @@ HQ_POSITIONS_B = {(11, 1), (11, 3)}
 
 
 def random_layout_for_side(side):
-    """Return a dict {(row, col): piece} with a legal random layout.
+    """Return a dict {(row, col): piece} with a strategically-weighted layout.
 
-    Constraints (from original switch() validation):
-      - Flag (order=0): must be in a headquarters position
-      - LMN (order=10): last two rows only (A: 0-1, B: 10-11)
-      - Bomb (order=None): not on front row (A: not 5, B: not 6)
-      - Camps are never filled at start
+    Strategic principles:
+      - Flag in a headquarters
+      - Mines clustered near the flag (shield formation)
+      - At least one bomb near the flag as a second defense layer
+      - Marshal / General in the mid rows (safe but active)
+      - MGen / BGen on or near the front (engage early)
+      - At least one sapper on a railroad column (col 0 or 4)
+      - Weak pieces fill remaining spots
     """
     if side == "A":
-        rows = range(0, 6)
         camps = CAMP_POSITIONS_A
         hqs = HQ_POSITIONS_A
         back_rows = {0, 1}
-        front_row = 5
+        mid_rows = {2, 3}
+        front_rows = {4, 5}
+        front_row = 5  # bombs not allowed here
     else:
-        rows = range(6, 12)
         camps = CAMP_POSITIONS_B
         hqs = HQ_POSITIONS_B
         back_rows = {10, 11}
+        mid_rows = {8, 9}
+        front_rows = {6, 7}
         front_row = 6
 
-    # All placeable positions (excluding camps)
-    all_pos = [(r, c) for r in rows for c in range(5) if (r, c) not in camps]
-    # 30 - 5 camps = 25 positions, matching 25 pieces
+    all_rows = sorted(back_rows | mid_rows | front_rows)
+    all_pos = [(r, c) for r in all_rows for c in range(5)
+               if (r, c) not in camps and (r, c) not in hqs]
+    hq_list = list(hqs)
 
     pieces = make_pieces(side)
-    random.shuffle(pieces)
-
-    # Separate constrained pieces
     flag = [p for p in pieces if isinstance(p, Flag)][0]
     lmns = [p for p in pieces if isinstance(p, LMN)]
     bombs = [p for p in pieces if isinstance(p, Bomb)]
-    regular = [p for p in pieces
-               if not isinstance(p, (Flag, LMN, Bomb))]
+    marshal = [p for p in pieces if isinstance(p, Mar)][0]
+    general = [p for p in pieces if isinstance(p, Gen)][0]
+    mgens = [p for p in pieces if isinstance(p, MGen)]
+    bgens = [p for p in pieces if isinstance(p, BGen)]
+    sappers = [p for p in pieces if isinstance(p, Spr)]
+    others = [p for p in pieces if isinstance(p, (Col, Maj, Capt, Lt))]
+    random.shuffle(others)
 
     placement = {}
 
-    # 1) Place flag in a random headquarters
-    flag_pos = random.choice(list(hqs))
+    def available(zone_rows=None):
+        """Positions not yet taken, optionally filtered by row set."""
+        return [p for p in all_pos + hq_list
+                if p not in placement and
+                (zone_rows is None or p[0] in zone_rows)]
+
+    def place_in(piece, candidates):
+        """Place a piece in one of the candidate positions (random)."""
+        opts = [c for c in candidates if c not in placement]
+        if not opts:
+            opts = [p for p in all_pos + hq_list if p not in placement]
+        pos = random.choice(opts)
+        placement[pos] = piece
+
+    # 1. Flag → random headquarters
+    flag_pos = random.choice(hq_list)
     placement[flag_pos] = flag
+    fx, fy = flag_pos
 
-    # 2) Place 3 landmines in back two rows (excluding camps and flag pos)
-    lmn_candidates = [p for p in all_pos
-                      if p[0] in back_rows and p not in placement]
-    random.shuffle(lmn_candidates)
+    # 2. Mines → back rows, sorted by proximity to flag
+    mine_candidates = [p for p in all_pos
+                       if p[0] in back_rows and p not in placement]
+    mine_candidates.sort(key=lambda p: abs(p[0] - fx) + abs(p[1] - fy))
     for i, lmn in enumerate(lmns):
-        placement[lmn_candidates[i]] = lmn
+        placement[mine_candidates[i]] = lmn
 
-    # 3) Place 2 bombs anywhere except front row and already-taken spots
-    bomb_candidates = [p for p in all_pos
-                       if p[0] != front_row and p not in placement]
-    random.shuffle(bomb_candidates)
-    for i, bomb in enumerate(bombs):
-        placement[bomb_candidates[i]] = bomb
+    # 3. Bombs: first near flag (back rows), second in mid zone
+    bomb_back = [p for p in all_pos
+                 if p[0] in back_rows and p not in placement]
+    bomb_back.sort(key=lambda p: abs(p[0] - fx) + abs(p[1] - fy))
+    if bomb_back:
+        placement[bomb_back[0]] = bombs[0]
+    else:
+        place_in(bombs[0], available(mid_rows))
 
-    # 4) Place remaining 19 regular pieces in remaining positions
-    remaining_pos = [p for p in all_pos if p not in placement]
-    random.shuffle(remaining_pos)
-    for i, piece in enumerate(regular):
-        placement[remaining_pos[i]] = piece
+    bomb_mid = [p for p in all_pos
+                if p[0] in mid_rows and p not in placement]
+    random.shuffle(bomb_mid)
+    if bomb_mid:
+        placement[bomb_mid[0]] = bombs[1]
+    else:
+        place_in(bombs[1], [p for p in available() if p[0] != front_row])
+
+    # 4. Marshal + General → mid zone (safe but can advance)
+    mid_spots = available(mid_rows)
+    random.shuffle(mid_spots)
+    for piece in [marshal, general]:
+        if mid_spots:
+            placement[mid_spots.pop()] = piece
+        else:
+            place_in(piece, available(back_rows))
+
+    # 5. MGen + BGen → front zone (early engagement)
+    front_spots = available(front_rows)
+    random.shuffle(front_spots)
+    for piece in mgens + bgens:
+        if front_spots:
+            placement[front_spots.pop()] = piece
+        else:
+            place_in(piece, available(mid_rows))
+
+    # 6. At least 1 sapper on a railroad column (col 0 or 4)
+    rail_spots = [p for p in available() if p[1] in (0, 4)]
+    random.shuffle(rail_spots)
+    if rail_spots:
+        placement[rail_spots[0]] = sappers[0]
+        remaining_sappers = sappers[1:]
+    else:
+        remaining_sappers = sappers
+
+    # 7. Fill remaining positions with other pieces + leftover sappers
+    fill_pieces = others + remaining_sappers
+    random.shuffle(fill_pieces)
+    fill_spots = available()
+    random.shuffle(fill_spots)
+    for i, piece in enumerate(fill_pieces):
+        placement[fill_spots[i]] = piece
 
     return placement
 
@@ -295,10 +357,10 @@ def new_game():
     game.winner = None
     game.turn = "B"  # player goes first
     if difficulty == "hard":
-        game.maxDepth = 6
+        game.maxDepth = 12
         set_search_profile("strong")
     else:
-        game.maxDepth = 2
+        game.maxDepth = 6
         set_search_profile("fast")
     game.mode = mode
     game.ai_mar_alive = True
