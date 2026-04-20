@@ -1,9 +1,44 @@
 ######## This file contains the core game rules and a stronger search-based AI
 
 import time
+import random as _random
 from collections import defaultdict
 
 from pieceClasses import *
+
+
+# ===================== Zobrist Hashing =====================
+
+def _zobrist_piece_code(piece):
+    """Encode a piece into 0..23 for Zobrist table lookup.
+    order mapping: 0-10 stay as-is, None(bomb)=11.  Side A → +0, B → +12."""
+    if piece is None:
+        return -1
+    order = 11 if piece.order is None else piece.order
+    return order + (0 if piece.side == "A" else 12)
+
+# Pre-generate Zobrist random numbers (deterministic seed for reproducibility)
+_rng = _random.Random(0xDEADBEEF)
+ZOBRIST_TABLE = [[[_rng.getrandbits(64) for _ in range(24)]
+                  for _ in range(5)] for _ in range(12)]
+ZOBRIST_SIDE = _rng.getrandbits(64)   # XOR when side == "B"
+ZOBRIST_HASH = 0                      # running hash, updated by applyMove/undoMove
+POSITION_HISTORY = set()               # Zobrist hashes on current search path (repetition detection)
+
+
+def compute_zobrist(board, side):
+    """Full recomputation of Zobrist hash from scratch."""
+    h = 0
+    for r in range(12):
+        for c in range(5):
+            code = _zobrist_piece_code(board[r][c].piece)
+            if code >= 0:
+                h ^= ZOBRIST_TABLE[r][c][code]
+    if side == "B":
+        h ^= ZOBRIST_SIDE
+    return h
+
+# ===================== End Zobrist =====================
 
 
 #### finding all posts that are legal moves given a selected piece
@@ -39,6 +74,9 @@ KEY_CELLS = {
     (6, 0), (6, 1), (6, 2), (6, 3), (6, 4),
     (7, 1), (7, 2), (7, 3),
 }
+# Futility Pruning margins: at depth_left=N, a quiet move that can't lift
+# static_eval into [alpha, beta] is skipped.
+FUTILITY_MARGIN = {1: 120, 2: 250}
 PROFILE_SETTINGS = {
     "fast": {
         "time_limit": 2.0,
@@ -46,6 +84,9 @@ PROFILE_SETTINGS = {
         "advance_weight": 0.2,
         "control_weight": 1.5,
         "threat_weight": 1.0,
+        "max_depth_cap": None,
+        "root_random_pool": 1,
+        "root_random_prob": 0.0,
     },
     "strong": {
         "time_limit": 5.0,
@@ -53,8 +94,80 @@ PROFILE_SETTINGS = {
         "advance_weight": 0.25,
         "control_weight": 2.0,
         "threat_weight": 1.2,
+        "max_depth_cap": None,
+        "root_random_pool": 1,
+        "root_random_prob": 0.0,
+    },
+    # Hidden-mode profiles: weaker than fast/strong.
+    # See set_hidden_mode() / _is_hidden_to_ai() for the companion masking.
+    "hidden_easy": {
+        "time_limit": 1.0,
+        "qdepth": 2,
+        "advance_weight": 0.15,
+        "control_weight": 1.0,
+        "threat_weight": 0.7,
+        "max_depth_cap": 4,
+        "root_random_pool": 4,
+        "root_random_prob": 0.55,
+    },
+    "hidden_hard": {
+        "time_limit": 3.0,
+        "qdepth": 4,
+        "advance_weight": 0.22,
+        "control_weight": 1.6,
+        "threat_weight": 1.0,
+        "max_depth_cap": 8,
+        "root_random_pool": 2,
+        "root_random_prob": 0.2,
     },
 }
+
+
+# --- Hidden-information masking (active only in hidden mode) ---
+# When _HIDE_ENEMY_INFO is True, the evaluation layer treats every B-side
+# piece whose `_revealed` attribute is not truthy as "unknown": its real
+# order/value never feeds into _piece_score / _combat_outcome / threat
+# scoring. applyMove/contact() still resolve real outcomes (needed for legal
+# move generation and correct post-move board state), but the leaf eval that
+# guides search cannot exploit enemy ranks the AI has not publicly observed.
+#
+# The revealed flag lives on the Piece instance so it survives copy.deepcopy
+# of the board for search (id()-based tracking would not).
+_HIDE_ENEMY_INFO = False
+# Stub value for unrevealed B pieces — set slightly below the mean of the
+# 20 non-special pieces (司令 100 … 排长 3 mean ≈ 35) so the AI is mildly
+# pessimistic about charging at unknowns.
+_HIDDEN_VALUE_STUB = 28
+
+
+def set_hidden_mode(enabled):
+    """Enable/disable identity masking of B-side pieces for the AI."""
+    global _HIDE_ENEMY_INFO
+    _HIDE_ENEMY_INFO = bool(enabled)
+
+
+def reset_reveal_tracking():
+    """No-op placeholder: reveal state lives on Piece instances, and each new
+    game creates fresh pieces. Kept as a public hook in case callers want to
+    clear state explicitly."""
+    return
+
+
+def mark_piece_revealed(piece):
+    """Flag a piece as publicly known (e.g., after it participated in combat).
+    Safe to call on the live game board — `_revealed` deep-copies into the
+    search's board copy so the AI keeps seeing it as revealed during search."""
+    if piece is not None:
+        piece._revealed = True
+
+
+def _is_hidden_to_ai(piece):
+    """True iff this piece's true identity should be masked from AI eval."""
+    if not _HIDE_ENEMY_INFO or piece is None:
+        return False
+    if piece.side != "B":
+        return False
+    return not getattr(piece, "_revealed", False)
 
 
 def _move_to_debug(move):
@@ -243,20 +356,58 @@ def contact(a, b, i, j, board):
 
 
 def applyMove(board, fr, fc, tr, tc):
+    global ZOBRIST_HASH
     fromPost = board[fr][fc].piece
     toPost = board[tr][tc].piece
-    if toPost == None:
+    # XOR out the moving piece from its origin
+    code_from = _zobrist_piece_code(fromPost)
+    if code_from >= 0:
+        ZOBRIST_HASH ^= ZOBRIST_TABLE[fr][fc][code_from]
+    if toPost is None:
         board[tr][tc].piece = fromPost
         board[fr][fc].piece = None
+        # XOR in the piece at its destination
+        ZOBRIST_HASH ^= ZOBRIST_TABLE[tr][tc][code_from]
     else:
+        # XOR out the captured piece
+        code_to = _zobrist_piece_code(toPost)
+        if code_to >= 0:
+            ZOBRIST_HASH ^= ZOBRIST_TABLE[tr][tc][code_to]
         contact(fr, fc, tr, tc, board)
+        # XOR in whatever remains at from and to cells
+        new_from = _zobrist_piece_code(board[fr][fc].piece)
+        new_to = _zobrist_piece_code(board[tr][tc].piece)
+        if new_from >= 0:
+            ZOBRIST_HASH ^= ZOBRIST_TABLE[fr][fc][new_from]
+        if new_to >= 0:
+            ZOBRIST_HASH ^= ZOBRIST_TABLE[tr][tc][new_to]
+    # Flip side-to-move
+    ZOBRIST_HASH ^= ZOBRIST_SIDE
     return (fromPost, toPost)
 
 
 
 def undoMove(board, fr, fc, tr, tc, fromPost, toPost):
+    global ZOBRIST_HASH
+    # XOR out whatever is currently at from/to (post-move state)
+    cur_from = _zobrist_piece_code(board[fr][fc].piece)
+    cur_to = _zobrist_piece_code(board[tr][tc].piece)
+    if cur_from >= 0:
+        ZOBRIST_HASH ^= ZOBRIST_TABLE[fr][fc][cur_from]
+    if cur_to >= 0:
+        ZOBRIST_HASH ^= ZOBRIST_TABLE[tr][tc][cur_to]
+    # Restore original pieces
     board[fr][fc].piece = fromPost
     board[tr][tc].piece = toPost
+    # XOR in the restored pieces
+    orig_from = _zobrist_piece_code(fromPost)
+    orig_to = _zobrist_piece_code(toPost)
+    if orig_from >= 0:
+        ZOBRIST_HASH ^= ZOBRIST_TABLE[fr][fc][orig_from]
+    if orig_to >= 0:
+        ZOBRIST_HASH ^= ZOBRIST_TABLE[tr][tc][orig_to]
+    # Flip side-to-move back
+    ZOBRIST_HASH ^= ZOBRIST_SIDE
 
 
 
@@ -274,7 +425,7 @@ def searchAfterMove(board, fr, fc, tr, tc, nextSearchFn, maxDepth, depth, alpha,
 
 def set_search_profile(profile):
     global SEARCH_PROFILE
-    if profile in ("fast", "strong"):
+    if profile in PROFILE_SETTINGS:
         SEARCH_PROFILE = profile
 
 
@@ -294,14 +445,21 @@ def getLargestPiece(board):
     return (largestA, largestB)
 
 
-def _profile_value(key):
-    return PROFILE_SETTINGS.get(SEARCH_PROFILE, PROFILE_SETTINGS["fast"])[key]
+def _profile_value(key, default=None):
+    return PROFILE_SETTINGS.get(SEARCH_PROFILE, PROFILE_SETTINGS["fast"]).get(key, default)
 
 
 def _piece_score(piece, largest_opponent_value):
     if piece == None:
         return 0
+    if _is_hidden_to_ai(piece):
+        return _HIDDEN_VALUE_STUB
     if piece.order == 0:
+        # In hidden mode, zero out A's flag to cancel the asymmetry caused
+        # by B's hidden flag mapping to the stub value — otherwise the AI
+        # would see a phantom +10000 baseline advantage.
+        if _HIDE_ENEMY_INFO:
+            return _HIDDEN_VALUE_STUB
         return 10000
     if piece.order == None:
         return max(20, largest_opponent_value // 2)
@@ -318,6 +476,10 @@ def _advance_score(piece, row):
 
 def _combat_outcome(attacker, defender):
     if defender == None:
+        return 0
+    # Unknown identity → treat as uncertain (mutual) so threat/opportunity
+    # scoring cannot exploit concealed ranks.
+    if _is_hidden_to_ai(attacker) or _is_hidden_to_ai(defender):
         return 0
     if defender.order == 0:
         return 1
@@ -360,7 +522,10 @@ def _move_order_score(board, move, side, tt_move=None, ply=0, root_prev_move=Non
 
     if defender != None:
         score += 80000
-        if defender.order == 0:
+        # In hidden mode, defender.order is not something AI should "see" for
+        # unrevealed B pieces — skip the flag-hunt priority bonus so the AI
+        # cannot target flags by identity.
+        if defender.order == 0 and not _is_hidden_to_ai(defender):
             score += 100000
         score += int(_capture_swing(attacker, defender, getattr(defender, "value", 0)) * 20)
 
@@ -393,6 +558,73 @@ def _leaf_score(board):
 # Adjacency directions for fast threat detection
 _ADJ_DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
+# Railroad lines for remote threat scanning.
+# Each entry is a contiguous straight line on which pieces can move freely
+# (and from which other pieces on the same line are reachable in one move,
+# ignoring sapper turns). Rails 5/6 split at the front-line junctions but
+# remain useful as "visibility lines" for threat detection.
+_RAIL_LINES = [
+    # Vertical lines on col 0 and col 4, rows 1..10
+    [(r, 0) for r in range(1, 11)],
+    [(r, 4) for r in range(1, 11)],
+    # Horizontal lines on rows 1, 5, 6, 10
+    [(1, c) for c in range(5)],
+    [(5, c) for c in range(5)],
+    [(6, c) for c in range(5)],
+    [(10, c) for c in range(5)],
+]
+
+# Map each railroad cell → list of (line, index_in_line) it belongs to
+_RAIL_CELL_LINES = {}
+for _line in _RAIL_LINES:
+    for _idx, _pos in enumerate(_line):
+        _RAIL_CELL_LINES.setdefault(_pos, []).append((_line, _idx))
+
+
+def _rail_nearest_enemy(board, line, idx, side):
+    """Return list of (piece, enemy_pos, distance) for nearest enemy in both
+    directions on a rail line. Stops at first non-empty cell in each direction."""
+    results = []
+    # Forward
+    for j in range(idx + 1, len(line)):
+        r, c = line[j]
+        p = board[r][c].piece
+        if p is not None:
+            if p.side != side:
+                results.append((p, (r, c), j - idx))
+            break
+    # Backward
+    for j in range(idx - 1, -1, -1):
+        r, c = line[j]
+        p = board[r][c].piece
+        if p is not None:
+            if p.side != side:
+                results.append((p, (r, c), idx - j))
+            break
+    return results
+
+
+def _game_phase_multipliers(board):
+    """Return (advance_mul, control_mul, threat_mul, phase_tag) based on total material.
+    Phase thresholds tuned for land-battle-chess (initial total material ~540 per side
+    excluding flags)."""
+    total = 0
+    for x in range(12):
+        for y in range(5):
+            p = board[x][y].piece
+            if p is None or p.order == 0:
+                continue
+            if p.order is None:
+                total += 50  # bombs
+            else:
+                total += getattr(p, "value", 0)
+    # Phase by total material on the board (both sides combined)
+    if total > 700:
+        return (0.5, 1.5, 1.0, "opening")
+    if total > 300:
+        return (1.0, 1.0, 1.0, "midgame")
+    return (3.0, 0.8, 1.5, "endgame")
+
 
 def getBoardScore(board, include_mobility=True):
     """Fast static evaluation — NO isLegal() calls, pure board scan O(60)."""
@@ -400,6 +632,12 @@ def getBoardScore(board, include_mobility=True):
     adv_w = _profile_value("advance_weight")
     ctrl_w = _profile_value("control_weight")
     threat_w = _profile_value("threat_weight")
+
+    # Phase-aware scaling
+    adv_mul, ctrl_mul, threat_mul, _phase = _game_phase_multipliers(board)
+    adv_w *= adv_mul
+    ctrl_w *= ctrl_mul
+    threat_w *= threat_mul
 
     score = 0.0
     flagA = None
@@ -467,6 +705,25 @@ def getBoardScore(board, include_mobility=True):
                         # Would lose — danger
                         score -= sign * piece_val * 0.12 * threat_w
 
+                # Railroad remote threat: if this piece is on a rail line,
+                # see what enemy is visible along it. Mines/flags never move,
+                # so skip them as the attacker (they can still be a target).
+                if piece.order not in (10, 0) and (x, y) in _RAIL_CELL_LINES:
+                    for line, idx in _RAIL_CELL_LINES[(x, y)]:
+                        for enemy, (ex, ey), dist in _rail_nearest_enemy(board, line, idx, piece.side):
+                            # Enemies inside a camp are untargetable
+                            if isinstance(board[ex][ey], Camp):
+                                continue
+                            enemy_val = _piece_score(enemy, largest_opp)
+                            outcome = _combat_outcome(piece, enemy)
+                            atten = 1.0 / dist  # closer threats matter more
+                            if outcome > 0:
+                                score += sign * enemy_val * 0.08 * threat_w * atten
+                            elif outcome == 0:
+                                score += sign * (enemy_val - piece_val) * 0.04 * threat_w * atten
+                            else:
+                                score -= sign * piece_val * 0.06 * threat_w * atten
+
     # --- Flag safety ---
     for flag_pos, flag_side in [(flagA, "A"), (flagB, "B")]:
         if flag_pos is None:
@@ -497,7 +754,113 @@ def getBoardScore(board, include_mobility=True):
                     pv = _piece_score(n, opp_largest)
                     score -= sign * pv * (4 - dist) * 0.03
 
+    # --- Tactical patterns ---
+    score += _tactical_patterns(board, flagA, flagB, largestA, largestB)
+
     return int(score)
+
+
+def _tactical_patterns(board, flagA, flagB, largestA, largestB):
+    """Detect military-chess-specific tactical motifs.
+    All scoring is from A's perspective (positive = good for A)."""
+    tscore = 0.0
+
+    # 1. Bomb ambush: own bomb adjacent to enemy Marshal/General (order>=8)
+    # 2. Trapped big piece: own order>=7 with all 4 neighbors blocked
+    for x in range(12):
+        for y in range(5):
+            piece = board[x][y].piece
+            if piece is None:
+                continue
+            sign = 1 if piece.side == "A" else -1
+            # Bomb ambush
+            if piece.order is None:  # bomb
+                for dx, dy in _ADJ_DIRS:
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < 12 and 0 <= ny < 5):
+                        continue
+                    n = board[nx][ny].piece
+                    if n is None or n.side == piece.side:
+                        continue
+                    if n.order is not None and n.order >= 8:
+                        tscore += sign * 35
+                        break  # one per bomb is enough
+            # Trapped big piece (order 7/8/9)
+            if piece.order is not None and piece.order >= 7 and piece.order <= 9:
+                if isinstance(board[x][y], Camp):
+                    continue
+                blocked = 0
+                has_escape = False
+                for dx, dy in _ADJ_DIRS:
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < 12 and 0 <= ny < 5):
+                        blocked += 1
+                        continue
+                    n = board[nx][ny].piece
+                    if n is None:
+                        has_escape = True
+                        break
+                    if n.side == piece.side:
+                        blocked += 1
+                    else:
+                        # Enemy: escape if we can beat it
+                        if _combat_outcome(piece, n) > 0:
+                            has_escape = True
+                            break
+                        blocked += 1
+                if not has_escape and blocked >= 4:
+                    # Not on a railroad escape hatch?
+                    if (x, y) not in railroadPosts:
+                        tscore -= sign * 25
+
+    # 3. Sapper vs landmine alignment on railroad lines
+    # For each friendly sapper on a rail line, check if an enemy mine is
+    # reachable along that line with no blockers.
+    for x in range(12):
+        for y in range(5):
+            piece = board[x][y].piece
+            if piece is None or piece.order != 1:  # not a sapper
+                continue
+            if (x, y) not in _RAIL_CELL_LINES:
+                continue
+            sign = 1 if piece.side == "A" else -1
+            for line, idx in _RAIL_CELL_LINES[(x, y)]:
+                for direction in (1, -1):
+                    j = idx + direction
+                    while 0 <= j < len(line):
+                        r, c = line[j]
+                        p = board[r][c].piece
+                        if p is None:
+                            j += direction
+                            continue
+                        if p.side != piece.side and p.order == 10:
+                            tscore += sign * 20
+                        break
+
+    # 4. Flag defense integrity: check the row in front of each flag
+    # for mines/bombs/big pieces. A gap in the defense line is bad.
+    for flag_pos, flag_side in [(flagA, "A"), (flagB, "B")]:
+        if flag_pos is None:
+            continue
+        fx, fy = flag_pos
+        sign = 1 if flag_side == "A" else -1
+        # The row immediately in front of the HQ
+        front_row = fx + 1 if flag_side == "A" else fx - 1
+        if not (0 <= front_row < 12):
+            continue
+        defenders = 0
+        for c in range(max(0, fy - 1), min(5, fy + 2)):
+            d = board[front_row][c].piece
+            if d is None or d.side != flag_side:
+                continue
+            if d.order == 10 or d.order is None or (d.order is not None and d.order >= 7):
+                defenders += 1
+        if defenders >= 2:
+            tscore += sign * 40
+        elif defenders == 0:
+            tscore -= sign * 30
+
+    return tscore
 
 
 
@@ -524,6 +887,13 @@ def _terminal_score(board, ply=0):
     if not has_flag_a:
         return -MATE_SCORE + ply
     if not has_flag_b:
+        # In hidden mode the AI cannot know which B piece is the flag until
+        # it is revealed. Returning MATE here would let the search tree plan
+        # exact flag-capture lines using the hidden piece identity. Let the
+        # static eval grade the post-capture position instead; the game-over
+        # check in app.py still ends the real game correctly.
+        if _HIDE_ENEMY_INFO:
+            return None
         return MATE_SCORE - ply
     # Both sides have potentially mobile pieces — not terminal (fast path)
     if mobile_a and mobile_b:
@@ -562,16 +932,9 @@ def _ordered_moves(board, side, tt_move=None, ply=0, root_prev_move=None, captur
 
 
 def _board_key(board, side):
-    cells = []
-    for x in range(12):
-        for y in range(5):
-            piece = board[x][y].piece
-            if piece == None:
-                cells.append(0)
-            else:
-                order = 11 if piece.order == None else piece.order + 1
-                cells.append(order if piece.side == "A" else -order)
-    return (side, tuple(cells))
+    # Uses the running Zobrist hash (updated incrementally by applyMove/undoMove).
+    # O(1) vs the old O(60) tuple construction.
+    return (side, ZOBRIST_HASH)
 
 
 def _is_search_timeout():
@@ -683,6 +1046,12 @@ def _alpha_beta(board, side, depth_left, alpha, beta, ply=0, allow_null=True):
     alpha_original = alpha
     beta_original = beta
 
+    # Repetition detection: if we've seen this exact position on the current
+    # search path, treat it as a draw. Only matters for ply > 0 since the root
+    # position was just reached fresh.
+    if ply > 0 and ZOBRIST_HASH in POSITION_HISTORY:
+        return (None, 0)
+
     terminal = _terminal_score(board, ply)
     if terminal != None:
         return (None, terminal)
@@ -711,71 +1080,111 @@ def _alpha_beta(board, side, depth_left, alpha, beta, ply=0, allow_null=True):
     if len(moves) == 0:
         return (None, getBoardScore(board, include_mobility=False))
 
-    bestMove = None
-    if side == "A":
-        bestScore = -INF
-        for i, (fr, fc, tr, tc) in enumerate(moves):
-            move = (fr, fc, tr, tc)
-            is_capture = board[tr][tc].piece is not None
+    # --- Futility Pruning setup ---
+    # At shallow depths, if static eval is far from alpha/beta, quiet moves
+    # are unlikely to change the outcome — skip them to save search time.
+    can_futility = depth_left in FUTILITY_MARGIN and ply > 0
+    static_eval = None
+    if can_futility:
+        static_eval = getBoardScore(board, include_mobility=False)
 
-            # --- Late Move Reduction (LMR) ---
-            reduction = 0
-            if (i >= 4 and not is_capture and depth_left >= 3
-                    and move != tt_move):
-                reduction = 1
+    # Record current position for repetition detection
+    cur_hash = ZOBRIST_HASH
+    POSITION_HISTORY.add(cur_hash)
 
-            fromPost, toPost = applyMove(board, fr, fc, tr, tc)
-            try:
-                _, childScore = _alpha_beta(
-                    board, "B", depth_left - 1 - reduction,
-                    alpha, beta, ply + 1)
-                # Re-search at full depth if reduced search looks promising
-                if reduction > 0 and childScore > alpha:
-                    _, childScore = _alpha_beta(
-                        board, "B", depth_left - 1,
-                        alpha, beta, ply + 1)
-            finally:
-                undoMove(board, fr, fc, tr, tc, fromPost, toPost)
-            if childScore > bestScore:
-                bestScore = childScore
-                bestMove = move
-            alpha = max(alpha, bestScore)
-            if alpha >= beta:
-                if toPost is None:
-                    _record_killer(ply, move)
-                _record_history(side, move, depth_left)
-                break
-    else:
-        bestScore = INF
-        for i, (fr, fc, tr, tc) in enumerate(moves):
-            move = (fr, fc, tr, tc)
-            is_capture = board[tr][tc].piece is not None
+    try:
+        bestMove = None
+        if side == "A":
+            # When futility pruning is active, static_eval acts as a stand-pat floor.
+            bestScore = static_eval if can_futility else -INF
+            for i, (fr, fc, tr, tc) in enumerate(moves):
+                move = (fr, fc, tr, tc)
+                is_capture = board[tr][tc].piece is not None
 
-            reduction = 0
-            if (i >= 4 and not is_capture and depth_left >= 3
-                    and move != tt_move):
-                reduction = 1
+                # --- Futility Pruning ---
+                if (can_futility and not is_capture and move != tt_move
+                        and static_eval + FUTILITY_MARGIN[depth_left] < alpha):
+                    continue
 
-            fromPost, toPost = applyMove(board, fr, fc, tr, tc)
-            try:
-                _, childScore = _alpha_beta(
-                    board, "A", depth_left - 1 - reduction,
-                    alpha, beta, ply + 1)
-                if reduction > 0 and childScore < beta:
-                    _, childScore = _alpha_beta(
-                        board, "A", depth_left - 1,
-                        alpha, beta, ply + 1)
-            finally:
-                undoMove(board, fr, fc, tr, tc, fromPost, toPost)
-            if childScore < bestScore:
-                bestScore = childScore
-                bestMove = move
-            beta = min(beta, bestScore)
-            if alpha >= beta:
-                if toPost is None:
-                    _record_killer(ply, move)
-                _record_history(side, move, depth_left)
-                break
+                # --- Late Move Reduction (LMR) ---
+                reduction = 0
+                if (i >= 4 and not is_capture and depth_left >= 3
+                        and move != tt_move):
+                    reduction = 1
+
+                fromPost, toPost = applyMove(board, fr, fc, tr, tc)
+                try:
+                    if i == 0:
+                        # First move: full window
+                        _, childScore = _alpha_beta(
+                            board, "B", depth_left - 1 - reduction,
+                            alpha, beta, ply + 1)
+                    else:
+                        # PVS: null window probe
+                        _, childScore = _alpha_beta(
+                            board, "B", depth_left - 1 - reduction,
+                            alpha, alpha + 1, ply + 1)
+                    # Re-search if reduced/null-window result beats alpha
+                    if (reduction > 0 or i > 0) and childScore > alpha and childScore < beta:
+                        _, childScore = _alpha_beta(
+                            board, "B", depth_left - 1,
+                            alpha, beta, ply + 1)
+                finally:
+                    undoMove(board, fr, fc, tr, tc, fromPost, toPost)
+                if childScore > bestScore:
+                    bestScore = childScore
+                    bestMove = move
+                alpha = max(alpha, bestScore)
+                if alpha >= beta:
+                    if toPost is None:
+                        _record_killer(ply, move)
+                    _record_history(side, move, depth_left)
+                    break
+        else:
+            bestScore = static_eval if can_futility else INF
+            for i, (fr, fc, tr, tc) in enumerate(moves):
+                move = (fr, fc, tr, tc)
+                is_capture = board[tr][tc].piece is not None
+
+                # --- Futility Pruning (B side: minimizing) ---
+                if (can_futility and not is_capture and move != tt_move
+                        and static_eval - FUTILITY_MARGIN[depth_left] > beta):
+                    continue
+
+                reduction = 0
+                if (i >= 4 and not is_capture and depth_left >= 3
+                        and move != tt_move):
+                    reduction = 1
+
+                fromPost, toPost = applyMove(board, fr, fc, tr, tc)
+                try:
+                    if i == 0:
+                        _, childScore = _alpha_beta(
+                            board, "A", depth_left - 1 - reduction,
+                            alpha, beta, ply + 1)
+                    else:
+                        # PVS: null window probe
+                        _, childScore = _alpha_beta(
+                            board, "A", depth_left - 1 - reduction,
+                            beta - 1, beta, ply + 1)
+                    if (reduction > 0 or i > 0) and childScore < beta and childScore > alpha:
+                        _, childScore = _alpha_beta(
+                            board, "A", depth_left - 1,
+                            alpha, beta, ply + 1)
+                finally:
+                    undoMove(board, fr, fc, tr, tc, fromPost, toPost)
+                if childScore < bestScore:
+                    bestScore = childScore
+                    bestMove = move
+                beta = min(beta, bestScore)
+                if alpha >= beta:
+                    if toPost is None:
+                        _record_killer(ply, move)
+                    _record_history(side, move, depth_left)
+                    break
+    finally:
+        # Always clean up, even on TimeoutError
+        POSITION_HISTORY.discard(cur_hash)
 
     if bestScore <= alpha_original:
         flag = TT_UPPER
@@ -850,6 +1259,17 @@ def _root_search(board, side, maxDepth, alpha, beta, prev_move=None):
     global SEARCH_DEADLINE
     global NODE_COUNT
     global LAST_COMPLETED_DEPTH
+    global ZOBRIST_HASH
+
+    # Profile-level depth cap (used to weaken hidden-mode AI without touching
+    # the UI-level maxDepth wiring).
+    _cap = _profile_value("max_depth_cap", None)
+    if _cap is not None and maxDepth > _cap:
+        maxDepth = _cap
+
+    # Initialize Zobrist hash from current board — increments handled by applyMove/undoMove.
+    ZOBRIST_HASH = compute_zobrist(board, side)
+    POSITION_HISTORY.clear()
 
     terminalScore = _terminal_score(board)
     if terminalScore != None:
@@ -905,6 +1325,29 @@ def _root_search(board, side, maxDepth, alpha, beta, prev_move=None):
 
     if bestMove == None:
         bestMove, bestScore = _fallback_move(board, side, prev_move)
+
+    # --- Optional weakening: root-level non-optimal pick ---
+    # With probability `root_random_prob`, swap the best move for a random
+    # pick from the top-K heuristically-ordered moves. Lets the AI "make
+    # plausible mistakes" on easy difficulty without breaking play quality.
+    _pool = _profile_value("root_random_pool", 1)
+    _prob = _profile_value("root_random_prob", 0.0)
+    if bestMove is not None and _pool > 1 and _prob > 0 and _random.random() < _prob:
+        _ordered = _ordered_moves(board, side, root_prev_move=prev_move)
+        if len(_ordered) > 1:
+            _pool_moves = list(_ordered[:max(_pool, 1)])
+            if bestMove not in _pool_moves:
+                _pool_moves[-1] = bestMove
+            _alt = _random.choice(_pool_moves)
+            if _alt != bestMove:
+                fr, fc, tr, tc = _alt
+                fromPost, toPost = applyMove(board, fr, fc, tr, tc)
+                try:
+                    _alt_score = getBoardScore(board, include_mobility=False)
+                finally:
+                    undoMove(board, fr, fc, tr, tc, fromPost, toPost)
+                bestMove = _alt
+                bestScore = _alt_score
 
     LAST_SEARCH_DEBUG = _build_search_debug(board, side, maxDepth, bestMove, bestScore)
     LAST_SEARCH_DEBUG["timed_out"] = timed_out

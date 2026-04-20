@@ -11,7 +11,22 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #e
 /* ---- page layout ---- */
 .page { display: flex; justify-content: center; gap: 36px; padding: 28px; min-height: 100vh; align-items: flex-start; }
 .board-area { flex-shrink: 0; }
-.panel { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+.panel { width: 420px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "status move"
+    "score  score"
+    "battle battle";
+  gap: 12px;
+}
+.panel-grid > #status-card    { grid-area: status; }
+.panel-grid > #move-card      { grid-area: move; }
+.panel-grid > #scoreboard-card{ grid-area: score; }
+.panel-grid > #battle-card    { grid-area: battle; }
+.panel-grid > .card { padding: 12px 14px; }
+.panel-grid > .card h3 { margin-bottom: 8px; padding-bottom: 6px; font-size: 15px; }
 
 /* ---- board ---- */
 .board-wrapper {
@@ -138,24 +153,31 @@ td.capture-effect { animation: capture-flash 0.4s ease-out; }
   box-shadow: 0 4px 12px rgba(0,0,0,.08);
 }
 .card h3 { font-size: 16px; color: #6d6d6d; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 7px; letter-spacing: .5px; }
-.status-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 16px; }
+.status-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 14px; }
 .status-label { color: #888; }
 .status-value { font-weight: 800; color: #2d2d2d; }
-.turn-indicator { font-size: 24px; text-align: center; padding: 10px 0; font-weight: bold; }
+.turn-indicator { font-size: 20px; text-align: center; padding: 6px 0; font-weight: bold; line-height: 1.2; }
 .turn-player { color: #2070c0; }
 .turn-ai { color: #d07020; }
 .turn-thinking { color: #d07020; animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-.result { text-align: center; font-size: 22px; font-weight: bold; padding: 12px 0; border-radius: 6px; }
+.result { text-align: center; font-size: 18px; font-weight: bold; padding: 8px 0; border-radius: 6px; }
 .result-win { background: #d4edda; color: #155724; }
 .result-lose { background: #f8d7da; color: #721c24; }
-.last-move { font-size: 15px; color: #555; line-height: 1.6; }
+.last-move {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.55;
+  max-height: 110px;
+  overflow-y: auto;
+}
+.last-move-empty { color: #999; }
 .last-move .player-move { color: #2070c0; }
 .last-move .ai-move-text { color: #d07020; }
 .battle-log {
-  height: 180px;
+  max-height: 220px;
   overflow-y: auto;
-  font-size: 15px;
+  font-size: 14px;
   color: #555;
   line-height: 1.55;
 }
@@ -168,155 +190,76 @@ td.capture-effect { animation: capture-flash 0.4s ease-out; }
   font-weight: 800;
 }
 .battle-log-empty { color: #999; }
-.debug-card { max-height: 520px; overflow: hidden; }
-.debug-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.debug-toolbar button {
-  border: 1px solid #cfd7df;
-  background: linear-gradient(180deg, #f7f9fb 0%, #eef2f6 100%);
-  color: #2d2d2d;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.debug-toolbar button:hover { background: linear-gradient(180deg, #eef2f6 0%, #e3e8ed 100%); }
-.debug-scroll { max-height: 430px; overflow-y: auto; padding-right: 4px; }
-.debug-section { margin-bottom: 14px; }
-.debug-focus {
-  margin-bottom: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #f0d2a5;
-  background: linear-gradient(180deg, #fff8ef 0%, #fff2df 100%);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
-}
-.debug-focus-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: #8c5412;
-  margin-bottom: 6px;
-}
-.debug-focus-main {
-  font-size: 14px;
-  color: #5d4330;
-  line-height: 1.6;
-}
-.debug-focus-list {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #5f5142;
-  line-height: 1.6;
-}
-.debug-focus-item {
-  padding: 4px 0;
-  border-top: 1px dashed rgba(140,84,18,.16);
-}
-.debug-section-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: #5e6a73;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  margin-bottom: 6px;
-}
-.debug-grid {
+
+/* ---- scoreboard ---- */
+.score-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 10px;
-  font-size: 13px;
-}
-.debug-metric {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  color: #555;
-  padding: 3px 0;
-  border-bottom: 1px dashed #eee;
-}
-.debug-plan {
-  padding: 9px 10px;
-  border: 1px solid #e6eaee;
-  border-radius: 8px;
-  background: #fafbfc;
-  margin-bottom: 8px;
-}
-.debug-plan-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-  font-size: 13px;
-  font-weight: 800;
-  color: #32414b;
-}
-.debug-plan-note {
-  font-size: 13px;
-  color: #58656e;
-  line-height: 1.45;
-}
-.debug-plan-cells {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #7a8790;
-}
-.debug-candidate {
-  border: 1px solid #e7ebef;
-  border-radius: 8px;
-  padding: 9px 10px;
-  margin-bottom: 8px;
-  background: #fff;
-}
-.debug-candidate.selected {
-  border-color: #d98a2b;
-  background: #fff6ea;
-  box-shadow: inset 0 0 0 1px rgba(217,138,43,.12);
-}
-.debug-candidate-head {
-  display: flex;
-  justify-content: space-between;
   gap: 10px;
-  font-size: 13px;
+}
+.score-col {
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e6e9ec;
+  background: #f6f7f9;
+}
+.score-col-me { background: linear-gradient(180deg, #eef4fd 0%, #dfeaf9 100%); border-color: #c7daf2; }
+.score-col-op { background: linear-gradient(180deg, #fcf1e6 0%, #f6e3cb 100%); border-color: #efceab; }
+.score-col-title {
+  text-align: center;
   font-weight: 800;
-  color: #2f3c45;
+  font-size: 14px;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
 }
-.debug-candidate-meta {
-  margin-top: 4px;
+.score-col-me .score-col-title { color: #1f5aa0; }
+.score-col-op .score-col-title { color: #a35a15; }
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  padding: 3px 0;
+  color: #3f3f3f;
+}
+.score-label { color: #6a6a6a; }
+.score-value { font-weight: 800; color: #1f1f1f; font-size: 16px; }
+.score-value-lost { color: #b33a3a; }
+.score-breakdown { margin-top: 10px; }
+.score-breakdown-title {
   font-size: 12px;
-  color: #6d7982;
-  line-height: 1.45;
+  font-weight: 800;
+  color: #6a7480;
+  letter-spacing: 1px;
+  margin: 6px 0 4px;
 }
-.debug-tags {
-  margin-top: 6px;
+.score-chip-row {
   display: flex;
   flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-bottom: 6px;
+}
+.score-chip {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-}
-.debug-tag {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 999px;
   background: #eef3f7;
-  color: #52606b;
-  font-size: 11px;
-  font-weight: 700;
-}
-.debug-reasons {
-  margin-top: 6px;
+  border-radius: 999px;
+  padding: 2px 9px;
   font-size: 12px;
-  color: #59656d;
-  line-height: 1.45;
+  color: #3a3a3a;
+  line-height: 1.6;
 }
-.debug-empty {
+.score-chip-name { color: #5e6a73; font-weight: 700; }
+.score-chip-count { font-weight: 800; color: #1f1f1f; }
+.score-chip-lost { opacity: 0.55; text-decoration: line-through; }
+.score-hidden-note {
   color: #8b949c;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
+  padding: 4px 2px;
 }
 .new-game-section label { display: block; font-size: 16px; margin-bottom: 4px; cursor: pointer; }
 .new-game-section .option-group {
@@ -369,11 +312,66 @@ td.capture-effect { animation: capture-flash 0.4s ease-out; }
   outline: 2px solid #2d7ff9;
   outline-offset: 2px;
 }
+
+/* ---- Compact top toolbar variant of .new-game-section ---- */
+.new-game-section.top-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.new-game-section.top-toolbar h3 { display: none; }
+.tb-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; }
+.tb-label { font-size: 16px; color: #4a4a4a; font-weight: 700; }
+.new-game-section.top-toolbar .option-group {
+  display: inline-flex;
+  grid-template-columns: unset;
+  gap: 0;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid #cfd7df;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.4);
+}
+.new-game-section.top-toolbar .opt-btn {
+  width: auto;
+  padding: 5px 12px;
+  font-size: 13px;
+  border-radius: 0;
+  border: none;
+  border-left: 1px solid #cfd7df;
+  box-shadow: none;
+  margin: 0;
+}
+.new-game-section.top-toolbar .opt-btn:first-child { border-left: none; }
+.new-game-section.top-toolbar .opt-btn:hover {
+  transform: none;
+  box-shadow: none;
+}
+.new-game-section.top-toolbar .opt-btn.active { box-shadow: none; }
+.new-game-section.top-toolbar .tb-start-btn {
+  margin: 0 0 0 auto;
+  padding: 6px 18px;
+  font-size: 14px;
+  width: auto;
+  border-radius: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 @media (max-width: 1100px) {
   .page { flex-direction: column; align-items: center; }
   .panel { width: min(680px, 100%); }
-  .debug-card { max-height: none; }
-  .debug-scroll { max-height: none; }
+  .panel-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "status"
+      "move"
+      "score"
+      "battle";
+  }
+  .new-game-section.top-toolbar { flex-wrap: wrap; justify-content: flex-start; }
+  .new-game-section.top-toolbar .tb-start-btn { margin-left: auto; }
 }
 </style>
 </head>
@@ -389,50 +387,76 @@ td.capture-effect { animation: capture-flash 0.4s ease-out; }
   </div>
 
   <div class="panel">
-    <div class="card" id="status-card">
-      <h3>对局状态</h3>
-      <div id="turn-display" class="turn-indicator">等待开始</div>
-      <div id="result-display"></div>
-      <div class="status-row">
-        <span class="status-label">模式</span>
-        <span class="status-value" id="s-mode">—</span>
+    <div class="card new-game-section top-toolbar">
+      <div class="tb-group">
+        <span class="tb-label">模式</span>
+        <input type="hidden" id="opt-mode" value="hidden">
+        <div class="option-group" id="mode-group">
+          <button type="button" class="opt-btn active" data-target="opt-mode" data-value="hidden">暗手</button>
+          <button type="button" class="opt-btn" data-target="opt-mode" data-value="open">明手</button>
+        </div>
       </div>
-      <div class="status-row">
-        <span class="status-label">难度</span>
-        <span class="status-value" id="s-diff">—</span>
+      <div class="tb-group">
+        <span class="tb-label">难度</span>
+        <input type="hidden" id="opt-diff" value="easy">
+        <div class="option-group" id="diff-group">
+          <button type="button" class="opt-btn active" data-target="opt-diff" data-value="easy">简单</button>
+          <button type="button" class="opt-btn" data-target="opt-diff" data-value="hard">困难</button>
+        </div>
       </div>
+      <button class="tb-start-btn" onclick="startGame()">开始游戏</button>
     </div>
-    <div class="card" id="move-card" style="display:none">
-      <h3>最近走子</h3>
-      <div id="last-move" class="last-move"></div>
-    </div>
-    <div class="card" id="battle-card">
-      <h3>最近战斗记录</h3>
-      <div id="battle-log" class="battle-log"></div>
-    </div>
-    <div class="card debug-card" id="debug-card">
-      <h3>AI 计划调试</h3>
-      <div class="debug-toolbar">
-        <span id="debug-status" class="status-label">等待棋局</span>
-        <button type="button" onclick="refreshAiDebug()">刷新分析</button>
+
+    <div class="panel-grid">
+      <div class="card" id="status-card">
+        <h3>对局状态</h3>
+        <div id="turn-display" class="turn-indicator">等待开始</div>
+        <div id="result-display"></div>
+        <div class="status-row">
+          <span class="status-label">模式</span>
+          <span class="status-value" id="s-mode">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">难度</span>
+          <span class="status-value" id="s-diff">—</span>
+        </div>
       </div>
-      <div id="debug-panel" class="debug-scroll"></div>
-    </div>
-    <div class="card new-game-section">
-      <h3>新游戏</h3>
-      <label>模式</label>
-      <input type="hidden" id="opt-mode" value="hidden">
-      <div class="option-group" id="mode-group">
-        <button type="button" class="opt-btn active" data-target="opt-mode" data-value="hidden">暗手模式</button>
-        <button type="button" class="opt-btn" data-target="opt-mode" data-value="open">明手模式</button>
+      <div class="card" id="move-card">
+        <h3>最近走子</h3>
+        <div id="last-move" class="last-move"></div>
       </div>
-      <label>难度</label>
-      <input type="hidden" id="opt-diff" value="easy">
-      <div class="option-group" id="diff-group">
-        <button type="button" class="opt-btn active" data-target="opt-diff" data-value="easy">简单</button>
-        <button type="button" class="opt-btn" data-target="opt-diff" data-value="hard">困难</button>
+      <div class="card" id="scoreboard-card">
+        <h3>双方战况</h3>
+        <div class="score-grid">
+          <div class="score-col score-col-me">
+            <div class="score-col-title">我方</div>
+            <div class="score-row">
+              <span class="score-label">剩余</span>
+              <span class="score-value" id="me-alive">—</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">已损失</span>
+              <span class="score-value score-value-lost" id="me-lost">—</span>
+            </div>
+          </div>
+          <div class="score-col score-col-op">
+            <div class="score-col-title">对方</div>
+            <div class="score-row">
+              <span class="score-label">剩余</span>
+              <span class="score-value" id="op-alive">—</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">已损失</span>
+              <span class="score-value score-value-lost" id="op-lost">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="score-breakdown" id="score-breakdown"></div>
       </div>
-      <button onclick="startGame()">开始游戏</button>
+      <div class="card" id="battle-card">
+        <h3>最近战斗记录</h3>
+        <div id="battle-log" class="battle-log"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -776,8 +800,6 @@ let overlays = [];
 let lastPlayerMove = null;
 let lastAiMove = null;
 let lastMoveRecords = { player: null, ai: null };
-let aiDebugCurrent = null;
-let aiDebugLastTurn = null;
 const SHOW_MOVE_CURSOR_LABELS = false;
 const MAX_BATTLE_RECORDS = 40;
 let battleRecords = [];
@@ -921,7 +943,7 @@ function appendBattleRecords(events) {
   for (const evt of events) {
     const text = battleRecordText(evt);
     if (!text) continue;
-    battleRecords.unshift({ text });
+    battleRecords.unshift({ text, evt });
   }
   if (battleRecords.length > MAX_BATTLE_RECORDS) {
     battleRecords = battleRecords.slice(0, MAX_BATTLE_RECORDS);
@@ -929,243 +951,115 @@ function appendBattleRecords(events) {
   renderBattleLog();
 }
 
-const PLAN_LABELS = {
-  ATTACK_FLAG_LANE: '主攻旗路',
-  DEFEND_FLAG: '回防军旗',
-  CLEAR_MINES: '工兵拆雷',
-  TRADE_WITH_BOMB: '炸弹兑子',
-  CONTROL_RAIL: '控制铁路',
-  SIMPLIFY_ENDGAME: '残局简化',
+// Derive names of AI (side A) pieces whose identity became public through
+// battle. Safe to show even in 暗手 mode — this info is already visible in
+// the battle-log card.
+function computeRevealedOppPieces() {
+  const counts = {};
+  for (const item of battleRecords) {
+    const evt = item.evt;
+    if (!evt) continue;
+    if (evt.attacker_side === 'A' && evt.attacker_name) {
+      counts[evt.attacker_name] = (counts[evt.attacker_name] || 0) + 1;
+    }
+    if (evt.defender_side === 'A' && evt.defender_name) {
+      counts[evt.defender_name] = (counts[evt.defender_name] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/* ==============================================================
+   Scoreboard
+   ============================================================== */
+const PIECES_PER_SIDE = 25;
+// Display order for 兵种细分 — from highest rank to lowest / special
+const PIECE_ORDER_FOR_DISPLAY = [
+  '司令', '军长', '师长', '旅长', '团长', '营长',
+  '连长', '排长', '工兵', '炸弹', '地雷', '军旗',
+];
+// Initial count of each piece type per side (matches make_pieces in app.py)
+const INITIAL_PIECE_COUNTS = {
+  '司令': 1, '军长': 1, '师长': 2, '旅长': 2, '团长': 2, '营长': 2,
+  '连长': 3, '排长': 3, '工兵': 3, '炸弹': 2, '地雷': 3, '军旗': 1,
 };
 
-function formatPlanType(planType) {
-  return PLAN_LABELS[planType] || planType || '未定计划';
-}
-
-function formatCells(cells, maxCount = 6) {
-  if (!Array.isArray(cells) || !cells.length) return '无';
-  const labels = cells.slice(0, maxCount).map(([r, c]) => posLabel(r, c));
-  if (cells.length > maxCount) labels.push('…');
-  return labels.join('、');
-}
-
-function formatDebugMove(move) {
-  if (!Array.isArray(move) || move.length !== 2) return '—';
-  return `${posLabel(move[0][0], move[0][1])} → ${posLabel(move[1][0], move[1][1])}`;
-}
-
-function formatPieceDebug(piece) {
-  if (!piece) return '空位';
-  if (piece.name) return piece.name;
-  if (piece.order === null || piece.order === undefined) return '?';
-  return `阶${piece.order}`;
-}
-
-function renderPlanBlock(plan, title) {
-  if (!plan) {
-    return `<div class="debug-plan"><div class="debug-plan-head"><span>${title}</span><span>—</span></div><div class="debug-plan-note">当前没有明确计划。</div></div>`;
-  }
-  return `
-    <div class="debug-plan">
-      <div class="debug-plan-head">
-        <span>${title}：${formatPlanType(plan.plan_type)}</span>
-        <span>P=${Number(plan.priority || 0).toFixed(1)}</span>
-      </div>
-      <div class="debug-plan-note">${plan.notes || '无备注'}</div>
-      <div class="debug-plan-cells">焦点格：${formatCells(plan.target_cells)}</div>
-    </div>
-  `;
-}
-
-function renderMetricGrid(stateFeatures) {
-  if (!stateFeatures) return '<div class="debug-empty">暂无状态特征。</div>';
-  const entries = [
-    ['阶段', stateFeatures.phase || 'unknown'],
-    ['A 可动子', stateFeatures.a_mobile],
-    ['B 可动子', stateFeatures.b_mobile],
-    ['A 旗压', Number(stateFeatures.a_flag_threat || 0).toFixed(1)],
-    ['B 旗压', Number(stateFeatures.b_flag_threat || 0).toFixed(1)],
-    ['A 通路压', Number(stateFeatures.a_lane_pressure || 0).toFixed(1)],
-    ['B 通路压', Number(stateFeatures.b_lane_pressure || 0).toFixed(1)],
-    ['中线控制', Number(stateFeatures.center_control || 0).toFixed(1)],
-  ];
-  return `<div class="debug-grid">${entries.map(([label, value]) => `<div class="debug-metric"><span>${label}</span><strong>${value}</strong></div>`).join('')}</div>`;
-}
-
-function renderEvalBreakdown(evaluation) {
-  if (!evaluation || !evaluation.components) return '<div class="debug-empty">暂无评估分解。</div>';
-  const entries = Object.entries(evaluation.components)
-    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-    .slice(0, 8);
-  const rows = entries.map(([label, value]) => `<div class="debug-metric"><span>${label}</span><strong>${Number(value).toFixed(2)}</strong></div>`).join('');
-  return `
-    <div class="debug-plan">
-      <div class="debug-plan-head"><span>总评估</span><span>${Number(evaluation.total || 0).toFixed(2)}</span></div>
-      <div class="debug-grid">${rows}</div>
-    </div>
-  `;
-}
-
-function renderCandidateList(candidates) {
-  if (!Array.isArray(candidates) || !candidates.length) {
-    return '<div class="debug-empty">暂无候选步搜索记录。</div>';
-  }
-  return candidates.map((item, index) => {
-    const reasonText = Array.isArray(item.reasons) && item.reasons.length
-      ? item.reasons.map(r => `${r.label}:${Number(r.score).toFixed(1)}`).join('，')
-      : '无显著排序因子';
-    const tagHtml = Array.isArray(item.tags) && item.tags.length
-      ? `<div class="debug-tags">${item.tags.map(tag => `<span class="debug-tag">${tag}</span>`).join('')}</div>`
-      : '';
-    return `
-      <div class="debug-candidate ${item.selected ? 'selected' : ''}">
-        <div class="debug-candidate-head">
-          <span>#${index + 1} ${formatDebugMove(item.move)}${item.selected ? '  ← 选中' : ''}</span>
-          <span>${item.search_score === null || item.search_score === undefined ? '排序' : '搜索'}:${item.search_score === null || item.search_score === undefined ? Number(item.order_score || 0).toFixed(1) : Number(item.search_score).toFixed(2)}</span>
-        </div>
-        <div class="debug-candidate-meta">
-          行棋子：${formatPieceDebug(item.piece)}，目标：${formatPieceDebug(item.target)}，排序分：${Number(item.order_score || 0).toFixed(1)}，战术延伸：${item.tactical ? '是' : '否'}
-        </div>
-        ${tagHtml}
-        <div class="debug-reasons">主要理由：${reasonText}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-function getSelectedCandidate(lastTurn) {
-  if (!lastTurn || !Array.isArray(lastTurn.candidates)) return null;
-  const picked = lastTurn.candidates.find(item => item.selected);
-  return picked || lastTurn.candidates[0] || null;
-}
-
-function getAlternativeCandidates(lastTurn, limit = 2) {
-  if (!lastTurn || !Array.isArray(lastTurn.candidates)) return [];
-  return lastTurn.candidates.filter(item => !item.selected).slice(0, limit);
-}
-
-function renderDecisionFocus(lastTurn) {
-  if (!lastTurn) {
-    return `
-      <div class="debug-focus">
-        <div class="debug-focus-title">AI 走棋原因</div>
-        <div class="debug-focus-main">AI 还没有走过棋。开始对局后，这里会直接解释它最近一步的动机。</div>
-      </div>
-    `;
-  }
-
-  const chosen = getSelectedCandidate(lastTurn);
-  if (!chosen) {
-    return `
-      <div class="debug-focus">
-        <div class="debug-focus-title">AI 走棋原因</div>
-        <div class="debug-focus-main">这一步没有记录到可解释的候选步。</div>
-      </div>
-    `;
-  }
-
-  const primaryPlan = lastTurn.plan_bundle && lastTurn.plan_bundle.primary;
-  const topReasons = Array.isArray(chosen.reasons) ? chosen.reasons.slice(0, 3) : [];
-  const topTags = Array.isArray(chosen.tags) ? chosen.tags.slice(0, 3) : [];
-  const alternatives = getAlternativeCandidates(lastTurn, 2);
-
-  let html = `
-    <div class="debug-focus">
-      <div class="debug-focus-title">AI 走棋原因</div>
-      <div class="debug-focus-main">
-        AI 最近一步选择了 <strong>${formatDebugMove(chosen.move)}</strong>。
-        ${primaryPlan ? `当前主计划是“${formatPlanType(primaryPlan.plan_type)}”。` : ''}
-        ${chosen.search_score !== null && chosen.search_score !== undefined ? `这步在根搜索中的分数是 <strong>${Number(chosen.search_score).toFixed(2)}</strong>。` : `这步当前排序分是 <strong>${Number(chosen.order_score || 0).toFixed(1)}</strong>。`}
-      </div>
-  `;
-
-  if (topTags.length || topReasons.length) {
-    html += '<div class="debug-focus-list">';
-    if (topTags.length) {
-      html += `<div class="debug-focus-item">直观标签：${topTags.join('、')}</div>`;
+function computeSideStats(side) {
+  const stats = { alive: 0, byName: {} };
+  if (!board) return stats;
+  for (let r = 0; r < 12; r++) {
+    for (let c = 0; c < 5; c++) {
+      const p = board[r][c].piece;
+      if (!p || p.side !== side) continue;
+      stats.alive += 1;
+      if (p.name) {
+        stats.byName[p.name] = (stats.byName[p.name] || 0) + 1;
+      }
     }
-    if (topReasons.length) {
-      html += `<div class="debug-focus-item">主要打分来源：${topReasons.map(r => `${r.label} ${Number(r.score).toFixed(1)}`).join('，')}</div>`;
-    }
-    if (chosen.tactical) {
-      html += '<div class="debug-focus-item">这步被视为战术关键点，所以叶子会继续做战术延伸，而不是立刻静态打分。</div>';
-    }
-    html += '</div>';
   }
-
-  if (alternatives.length) {
-    html += '<div class="debug-focus-list">';
-    for (const alt of alternatives) {
-      const altScore = alt.search_score !== null && alt.search_score !== undefined
-        ? Number(alt.search_score).toFixed(2)
-        : Number(alt.order_score || 0).toFixed(1);
-      const altReason = Array.isArray(alt.tags) && alt.tags.length
-        ? alt.tags.slice(0, 2).join('、')
-        : '缺少更强理由';
-      html += `<div class="debug-focus-item">备选 ${formatDebugMove(alt.move)} 没被选中：分数 ${altScore}，主要方向是 ${altReason}。</div>`;
-    }
-    html += '</div>';
-  }
-
-  html += '</div>';
-  return html;
+  return stats;
 }
 
-function renderDebugPanel() {
-  const panel = document.getElementById('debug-panel');
-  const statusEl = document.getElementById('debug-status');
-  if (!panel || !statusEl) return;
+function renderBreakdownChips(byName, initialCounts) {
+  const chips = [];
+  for (const name of PIECE_ORDER_FOR_DISPLAY) {
+    const initial = initialCounts[name] || 0;
+    const alive = byName[name] || 0;
+    if (initial === 0) continue;
+    const lost = alive === 0;
+    const cls = lost ? 'score-chip score-chip-lost' : 'score-chip';
+    chips.push(`<span class="${cls}"><span class="score-chip-name">${name}</span><span class="score-chip-count">${alive}/${initial}</span></span>`);
+  }
+  return `<div class="score-chip-row">${chips.join('')}</div>`;
+}
+
+function renderScoreboard() {
+  const meAliveEl = document.getElementById('me-alive');
+  const meLostEl = document.getElementById('me-lost');
+  const opAliveEl = document.getElementById('op-alive');
+  const opLostEl = document.getElementById('op-lost');
+  const breakdownEl = document.getElementById('score-breakdown');
+  if (!meAliveEl || !breakdownEl) return;
+
   if (!board) {
-    statusEl.textContent = '等待棋局';
-    panel.innerHTML = '<div class="debug-empty">开始一局后，这里会显示 AI 的计划、评估和候选步。</div>';
+    meAliveEl.textContent = '—';
+    meLostEl.textContent = '—';
+    opAliveEl.textContent = '—';
+    opLostEl.textContent = '—';
+    breakdownEl.innerHTML = '';
     return;
   }
 
-  const current = aiDebugCurrent;
-  const lastTurn = aiDebugLastTurn;
-  statusEl.textContent = lastTurn && lastTurn.best_move ? `上一手：${formatDebugMove(lastTurn.best_move)}` : '当前局面分析';
+  const me = computeSideStats('B');
+  const op = computeSideStats('A');
+  meAliveEl.textContent = `${me.alive} / ${PIECES_PER_SIDE}`;
+  meLostEl.textContent = String(PIECES_PER_SIDE - me.alive);
+  opAliveEl.textContent = `${op.alive} / ${PIECES_PER_SIDE}`;
+  opLostEl.textContent = String(PIECES_PER_SIDE - op.alive);
 
-  const currentPlan = current && current.plan_bundle ? current.plan_bundle : null;
-  const currentEval = current && current.evaluation ? current.evaluation : null;
-  const currentState = current && current.state_features ? current.state_features : null;
   let html = '';
+  html += '<div class="score-breakdown-title">我方兵种</div>';
+  html += renderBreakdownChips(me.byName, INITIAL_PIECE_COUNTS);
 
-  html += renderDecisionFocus(lastTurn);
-  html += '<div class="debug-section"><div class="debug-section-title">当前状态</div>' + renderMetricGrid(currentState) + '</div>';
-
-  html += '<div class="debug-section"><div class="debug-section-title">当前计划</div>';
-  if (currentPlan) {
-    html += renderPlanBlock(currentPlan.primary, '主计划');
-    html += renderPlanBlock(currentPlan.secondary, '备用计划');
+  html += '<div class="score-breakdown-title">对方兵种</div>';
+  if (gameMode === 'open') {
+    html += renderBreakdownChips(op.byName, INITIAL_PIECE_COUNTS);
   } else {
-    html += '<div class="debug-empty">暂无当前计划。</div>';
+    // 暗棋模式：具体分布保密；但从战斗记录派生的"已暴露身份"属于公开信息
+    const revealed = computeRevealedOppPieces();
+    const revealedNames = Object.keys(revealed);
+    if (revealedNames.length > 0) {
+      const chips = PIECE_ORDER_FOR_DISPLAY
+        .filter(n => revealed[n])
+        .map(n => `<span class="score-chip"><span class="score-chip-name">${n}</span><span class="score-chip-count">×${revealed[n]}</span></span>`)
+        .join('');
+      html += `<div class="score-chip-row">${chips}</div>`;
+      html += '<div class="score-hidden-note">以上为战斗中已暴露过的敌方棋子；其他仍按暗手规则隐藏。</div>';
+    } else {
+      html += '<div class="score-hidden-note">暗手模式下对方兵种按规则隐藏，仅能从战斗记录中获知已暴露的棋子。</div>';
+    }
   }
-  html += '</div>';
-
-  html += '<div class="debug-section"><div class="debug-section-title">评估拆分</div>' + renderEvalBreakdown(currentEval) + '</div>';
-
-  html += '<div class="debug-section"><div class="debug-section-title">上一手 AI 搜索</div>';
-  if (lastTurn) {
-    html += renderPlanBlock(lastTurn.plan_bundle ? lastTurn.plan_bundle.primary : null, '搜索主计划');
-    html += renderPlanBlock(lastTurn.plan_bundle ? lastTurn.plan_bundle.secondary : null, '搜索备用计划');
-    html += renderCandidateList(lastTurn.candidates);
-  } else {
-    html += '<div class="debug-empty">AI 还没有走过棋，暂无搜索记录。</div>';
-  }
-  html += '</div>';
-
-  panel.innerHTML = html;
-}
-
-async function refreshAiDebug() {
-  if (!board || animating) return;
-  try {
-    const res = await fetch('/api/ai-debug');
-    const data = await res.json();
-    aiDebugCurrent = data.current;
-    aiDebugLastTurn = data.last_turn;
-    renderDebugPanel();
-  } catch (_) {}
+  breakdownEl.innerHTML = html;
 }
 
 function initOptionButtons() {
@@ -1206,13 +1100,10 @@ async function startGame() {
   lastPlayerMove = null;
   lastAiMove = null;
   lastMoveRecords = { player: null, ai: null };
-  aiDebugCurrent = data.ai_debug_current || null;
-  aiDebugLastTurn = data.ai_debug_last_turn || null;
   battleRecords = [];
   render();
   updatePanel();
   renderBattleLog();
-  renderDebugPanel();
 }
 
 function updatePanel() {
@@ -1239,10 +1130,8 @@ function updatePanel() {
     turnEl.textContent = 'AI 回合';
     turnEl.className = 'turn-indicator turn-ai';
   }
-  const moveCard = document.getElementById('move-card');
   const moveEl = document.getElementById('last-move');
   if (lastPlayerMove || lastAiMove) {
-    moveCard.style.display = '';
     let html = '';
     if (lastPlayerMove) {
       const pm = lastPlayerMove;
@@ -1254,9 +1143,9 @@ function updatePanel() {
     }
     moveEl.innerHTML = html;
   } else {
-    moveCard.style.display = 'none';
+    moveEl.innerHTML = '<div class="last-move-empty">暂无走子记录</div>';
   }
-  renderDebugPanel();
+  renderScoreboard();
 }
 
 function render() {
@@ -1422,8 +1311,6 @@ async function makeMove(fr, fc, tr, tc) {
     // NOW wait for API (may already be done, or may take seconds on hard mode)
     const data = await apiPromise;
     appendBattleRecords(data.battle_events);
-    aiDebugCurrent = data.ai_debug_current || null;
-    aiDebugLastTurn = data.ai_debug_last_turn || aiDebugLastTurn;
 
     // Apply the real board_after_player (corrects any optimistic inaccuracy)
     board = data.board_after_player;
@@ -1497,7 +1384,7 @@ async function makeMove(fr, fc, tr, tc) {
 }
 initOptionButtons();
 renderBattleLog();
-renderDebugPanel();
+renderScoreboard();
 </script>
 </body>
 </html>

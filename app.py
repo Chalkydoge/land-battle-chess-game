@@ -15,6 +15,9 @@ from algorithms import (
     get_last_search_debug,
     get_plan_debug_snapshot,
     set_search_profile,
+    set_hidden_mode,
+    reset_reveal_tracking,
+    mark_piece_revealed,
 )
 
 app = Flask(__name__)
@@ -356,16 +359,28 @@ def new_game():
     game.board = init_board(randomize=randomize)
     game.winner = None
     game.turn = "B"  # player goes first
-    if difficulty == "hard":
-        game.maxDepth = 12
-        set_search_profile("strong")
+    # Hidden mode uses its own weaker profile; open mode keeps the original.
+    if mode == "hidden":
+        if difficulty == "hard":
+            game.maxDepth = 8
+            set_search_profile("hidden_hard")
+        else:
+            game.maxDepth = 4
+            set_search_profile("hidden_easy")
     else:
-        game.maxDepth = 6
-        set_search_profile("fast")
+        if difficulty == "hard":
+            game.maxDepth = 12
+            set_search_profile("strong")
+        else:
+            game.maxDepth = 6
+            set_search_profile("fast")
     game.mode = mode
     game.ai_mar_alive = True
     game.last_ai_debug = None
     game.last_ai_move = None
+    # Masking: AI treats B pieces as unknown until combat reveals them.
+    set_hidden_mode(mode == "hidden")
+    reset_reveal_tracking()
     return jsonify(board_response())
 
 
@@ -419,6 +434,9 @@ def make_move():
         event = build_battle_event(game.board[fr][fc].piece, game.board[tr][tc].piece)
         if event is not None:
             battle_events.append(event)
+        # Combat exposes both pieces publicly — let AI eval use their real rank.
+        mark_piece_revealed(game.board[fr][fc].piece)
+        mark_piece_revealed(game.board[tr][tc].piece)
         contactWithGameOverCheck(fr, fc, tr, tc, game)
 
     # Check if AI marshal was killed by this move
@@ -455,6 +473,8 @@ def make_move():
             event = build_battle_event(game.board[a][b].piece, game.board[i][j].piece)
             if event is not None:
                 battle_events.append(event)
+            mark_piece_revealed(game.board[a][b].piece)
+            mark_piece_revealed(game.board[i][j].piece)
             contactWithGameOverCheck(a, b, i, j, game)
     else:
         game.last_ai_move = None
