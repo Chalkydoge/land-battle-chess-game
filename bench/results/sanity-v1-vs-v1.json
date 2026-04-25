@@ -1,0 +1,1438 @@
+{
+  "config": {
+    "baseline": "v1",
+    "candidate": "v1",
+    "tc": 0.1,
+    "max_plies": 100,
+    "max_games": 60,
+    "workers": 4,
+    "elo_bounds": [
+      0.0,
+      10.0
+    ],
+    "alpha": 0.05,
+    "beta": 0.05,
+    "seed_offset": 0
+  },
+  "games": [
+    {
+      "winner": "candidate",
+      "plies": 93,
+      "seed": 1,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 31633,
+          "avg_depth": 2.234042553191489,
+          "tpm_p50": 0.10080819998984225,
+          "tpm_p95": 0.10164350000559352,
+          "moves": 47
+        },
+        "baseline": {
+          "nodes": 31053,
+          "avg_depth": 2.4130434782608696,
+          "tpm_p50": 0.10081550001632422,
+          "tpm_p95": 0.10131530000944622,
+          "moves": 46
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 1,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 34277,
+          "avg_depth": 2.32,
+          "tpm_p50": 0.10077640000963584,
+          "tpm_p95": 0.10170810000272468,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 33849,
+          "avg_depth": 2.08,
+          "tpm_p50": 0.10087970001040958,
+          "tpm_p95": 0.10180150001542643,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 0,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23037,
+          "avg_depth": 1.22,
+          "tpm_p50": 0.10105190001195297,
+          "tpm_p95": 0.10179089999292046,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23015,
+          "avg_depth": 1.16,
+          "tpm_p50": 0.10106049999012612,
+          "tpm_p95": 0.10161610000068322,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 0,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21835,
+          "avg_depth": 1.32,
+          "tpm_p50": 0.10109020001254976,
+          "tpm_p95": 0.1016525000159163,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 20410,
+          "avg_depth": 1.2,
+          "tpm_p50": 0.10116399999242276,
+          "tpm_p95": 0.10192380001535639,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 56,
+      "seed": 2,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 13376,
+          "avg_depth": 1.2857142857142858,
+          "tpm_p50": 0.10105190001195297,
+          "tpm_p95": 0.10154750000219792,
+          "moves": 28
+        },
+        "baseline": {
+          "nodes": 12271,
+          "avg_depth": 1.25,
+          "tpm_p50": 0.10107949998928234,
+          "tpm_p95": 0.10221879999153316,
+          "moves": 28
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 74,
+      "seed": 3,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 19685,
+          "avg_depth": 1.6756756756756757,
+          "tpm_p50": 0.10106980000273325,
+          "tpm_p95": 0.10148450001724996,
+          "moves": 37
+        },
+        "baseline": {
+          "nodes": 18886,
+          "avg_depth": 1.2972972972972974,
+          "tpm_p50": 0.10112380000646226,
+          "tpm_p95": 0.10224989999551326,
+          "moves": 37
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 2,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 27343,
+          "avg_depth": 1.7,
+          "tpm_p50": 0.100908199994592,
+          "tpm_p95": 0.1017545000067912,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 26829,
+          "avg_depth": 1.64,
+          "tpm_p50": 0.10106590000214055,
+          "tpm_p95": 0.10189370001899078,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 3,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 26908,
+          "avg_depth": 1.7,
+          "tpm_p50": 0.1008979000034742,
+          "tpm_p95": 0.10174529999494553,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 27575,
+          "avg_depth": 1.68,
+          "tpm_p50": 0.10090300001320429,
+          "tpm_p95": 0.1015936000039801,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 5,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21593,
+          "avg_depth": 1.28,
+          "tpm_p50": 0.10114889999385923,
+          "tpm_p95": 0.10167360000195913,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21420,
+          "avg_depth": 1.36,
+          "tpm_p50": 0.10103379999054596,
+          "tpm_p95": 0.10150920000160113,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 4,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 24535,
+          "avg_depth": 1.48,
+          "tpm_p50": 0.10088389998418279,
+          "tpm_p95": 0.10151969999424182,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 24453,
+          "avg_depth": 1.58,
+          "tpm_p50": 0.1010729999979958,
+          "tpm_p95": 0.10175560001516715,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 4,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 24745,
+          "avg_depth": 1.58,
+          "tpm_p50": 0.10102889998233877,
+          "tpm_p95": 0.10167680002632551,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 24859,
+          "avg_depth": 1.5,
+          "tpm_p50": 0.1009366000071168,
+          "tpm_p95": 0.10171600000467151,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 5,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 19575,
+          "avg_depth": 1.02,
+          "tpm_p50": 0.10111610000603832,
+          "tpm_p95": 0.10173650001524948,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 19736,
+          "avg_depth": 1.04,
+          "tpm_p50": 0.10125349997542799,
+          "tpm_p95": 0.10182059998624027,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 7,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 24529,
+          "avg_depth": 1.58,
+          "tpm_p50": 0.10104899998987094,
+          "tpm_p95": 0.1021576999919489,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 25134,
+          "avg_depth": 1.68,
+          "tpm_p50": 0.10118440000223927,
+          "tpm_p95": 0.10162770000169985,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 6,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23814,
+          "avg_depth": 1.6,
+          "tpm_p50": 0.10118899997905828,
+          "tpm_p95": 0.10222520001116209,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23422,
+          "avg_depth": 1.66,
+          "tpm_p50": 0.10121260001324117,
+          "tpm_p95": 0.10170490000746213,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 6,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 20460,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.10123860000749119,
+          "tpm_p95": 0.10171149999951012,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21285,
+          "avg_depth": 1.2,
+          "tpm_p50": 0.10131930001080036,
+          "tpm_p95": 0.10209810000378639,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 7,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 25033,
+          "avg_depth": 1.68,
+          "tpm_p50": 0.10117039998294786,
+          "tpm_p95": 0.10153970000101253,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 24158,
+          "avg_depth": 1.56,
+          "tpm_p50": 0.10112360000493936,
+          "tpm_p95": 0.10223519999999553,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 9,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22821,
+          "avg_depth": 1.42,
+          "tpm_p50": 0.10113119997549802,
+          "tpm_p95": 0.1021617999940645,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22662,
+          "avg_depth": 1.44,
+          "tpm_p50": 0.10107030000654049,
+          "tpm_p95": 0.10178999998606741,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 8,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23505,
+          "avg_depth": 1.62,
+          "tpm_p50": 0.10106169999926351,
+          "tpm_p95": 0.10184379998827353,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23378,
+          "avg_depth": 1.84,
+          "tpm_p50": 0.10118950001196936,
+          "tpm_p95": 0.10169069998664781,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 9,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22236,
+          "avg_depth": 1.42,
+          "tpm_p50": 0.10113690001890063,
+          "tpm_p95": 0.10192000001552515,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22820,
+          "avg_depth": 1.36,
+          "tpm_p50": 0.10108610001043417,
+          "tpm_p95": 0.10176329998648725,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 8,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 16936,
+          "avg_depth": 1.34,
+          "tpm_p50": 0.10145699998247437,
+          "tpm_p95": 0.10180940001737326,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 14293,
+          "avg_depth": 1.14,
+          "tpm_p50": 0.10133740000310354,
+          "tpm_p95": 0.10194910000427626,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 11,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 26384,
+          "avg_depth": 1.96,
+          "tpm_p50": 0.10090620000846684,
+          "tpm_p95": 0.10157790000084788,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 25773,
+          "avg_depth": 1.8,
+          "tpm_p50": 0.10098620000644587,
+          "tpm_p95": 0.10172139998758212,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 10,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23913,
+          "avg_depth": 1.58,
+          "tpm_p50": 0.10110160001204349,
+          "tpm_p95": 0.10207670001545921,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 24903,
+          "avg_depth": 1.74,
+          "tpm_p50": 0.10108759999275208,
+          "tpm_p95": 0.10172510001575574,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 10,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 24896,
+          "avg_depth": 1.8,
+          "tpm_p50": 0.10101929999655113,
+          "tpm_p95": 0.10186870000325143,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23981,
+          "avg_depth": 1.58,
+          "tpm_p50": 0.10108260001288727,
+          "tpm_p95": 0.10194550000596792,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 11,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23142,
+          "avg_depth": 1.42,
+          "tpm_p50": 0.10112269999808632,
+          "tpm_p95": 0.10176699998555705,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23143,
+          "avg_depth": 1.4,
+          "tpm_p50": 0.10108320001745597,
+          "tpm_p95": 0.10165630001574755,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 87,
+      "seed": 12,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 16279,
+          "avg_depth": 1.25,
+          "tpm_p50": 0.10139470000285655,
+          "tpm_p95": 0.1020507000212092,
+          "moves": 44
+        },
+        "baseline": {
+          "nodes": 15121,
+          "avg_depth": 1.2325581395348837,
+          "tpm_p50": 0.10127889999421313,
+          "tpm_p95": 0.10202260001096874,
+          "moves": 43
+        }
+      }
+    },
+    {
+      "winner": "baseline",
+      "plies": 87,
+      "seed": 12,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 15378,
+          "avg_depth": 1.255813953488372,
+          "tpm_p50": 0.10127340001054108,
+          "tpm_p95": 0.10196920001180843,
+          "moves": 43
+        },
+        "baseline": {
+          "nodes": 16188,
+          "avg_depth": 1.2272727272727273,
+          "tpm_p50": 0.10139369999524206,
+          "tpm_p95": 0.10185209999326617,
+          "moves": 44
+        }
+      }
+    },
+    {
+      "winner": "baseline",
+      "plies": 96,
+      "seed": 13,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 24644,
+          "avg_depth": 2.2291666666666665,
+          "tpm_p50": 0.10098649997962639,
+          "tpm_p95": 0.10182159999385476,
+          "moves": 48
+        },
+        "baseline": {
+          "nodes": 24983,
+          "avg_depth": 2.0,
+          "tpm_p50": 0.10093220000271685,
+          "tpm_p95": 0.10177790001034737,
+          "moves": 48
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 13,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 26664,
+          "avg_depth": 1.96,
+          "tpm_p50": 0.10105950001161546,
+          "tpm_p95": 0.10179939999943599,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 27310,
+          "avg_depth": 2.26,
+          "tpm_p50": 0.10084640001878142,
+          "tpm_p95": 0.10173520000535063,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 97,
+      "seed": 14,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 17995,
+          "avg_depth": 1.0816326530612246,
+          "tpm_p50": 0.10135390001232736,
+          "tpm_p95": 0.10166399998706765,
+          "moves": 49
+        },
+        "baseline": {
+          "nodes": 18537,
+          "avg_depth": 1.0416666666666667,
+          "tpm_p50": 0.10135919999447651,
+          "tpm_p95": 0.10208109999075532,
+          "moves": 48
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 14,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21847,
+          "avg_depth": 1.26,
+          "tpm_p50": 0.10116560000460595,
+          "tpm_p95": 0.10208169999532402,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 20933,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.10122570002567954,
+          "tpm_p95": 0.10196120000910014,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 15,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 31749,
+          "avg_depth": 2.72,
+          "tpm_p50": 0.10089139998308383,
+          "tpm_p95": 0.10188539998489432,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 32231,
+          "avg_depth": 2.9,
+          "tpm_p50": 0.1008968000242021,
+          "tpm_p95": 0.10207630001241341,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 15,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 28113,
+          "avg_depth": 2.28,
+          "tpm_p50": 0.10090849999687634,
+          "tpm_p95": 0.10173190000932664,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 26834,
+          "avg_depth": 2.16,
+          "tpm_p50": 0.10108260001288727,
+          "tpm_p95": 0.10182079998776317,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 96,
+      "seed": 17,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 20717,
+          "avg_depth": 1.2083333333333333,
+          "tpm_p50": 0.10136970001622103,
+          "tpm_p95": 0.10197790001984686,
+          "moves": 48
+        },
+        "baseline": {
+          "nodes": 20361,
+          "avg_depth": 1.1875,
+          "tpm_p50": 0.10107619999325834,
+          "tpm_p95": 0.10174640000332147,
+          "moves": 48
+        }
+      }
+    },
+    {
+      "winner": "baseline",
+      "plies": 98,
+      "seed": 16,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23915,
+          "avg_depth": 2.061224489795918,
+          "tpm_p50": 0.1011313000053633,
+          "tpm_p95": 0.10169139999197796,
+          "moves": 49
+        },
+        "baseline": {
+          "nodes": 23731,
+          "avg_depth": 1.9387755102040816,
+          "tpm_p50": 0.10116910000215285,
+          "tpm_p95": 0.10177249999833293,
+          "moves": 49
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 98,
+      "seed": 16,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23932,
+          "avg_depth": 1.9387755102040816,
+          "tpm_p50": 0.10118820000207052,
+          "tpm_p95": 0.10202029999345541,
+          "moves": 49
+        },
+        "baseline": {
+          "nodes": 23834,
+          "avg_depth": 2.061224489795918,
+          "tpm_p50": 0.10110640001948923,
+          "tpm_p95": 0.10183679999317974,
+          "moves": 49
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 17,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21180,
+          "avg_depth": 1.34,
+          "tpm_p50": 0.10117570002330467,
+          "tpm_p95": 0.10187060001771897,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21769,
+          "avg_depth": 1.32,
+          "tpm_p50": 0.10122889999183826,
+          "tpm_p95": 0.10194849999970756,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 18,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21807,
+          "avg_depth": 1.48,
+          "tpm_p50": 0.10114449998945929,
+          "tpm_p95": 0.10165709999273531,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21647,
+          "avg_depth": 1.38,
+          "tpm_p50": 0.10114860002067871,
+          "tpm_p95": 0.10160120000364259,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 18,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 20724,
+          "avg_depth": 1.4,
+          "tpm_p50": 0.10110520001035184,
+          "tpm_p95": 0.10177199999452569,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 20933,
+          "avg_depth": 1.38,
+          "tpm_p50": 0.101265000004787,
+          "tpm_p95": 0.10174059998826124,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 19,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22269,
+          "avg_depth": 1.26,
+          "tpm_p50": 0.10108029999537393,
+          "tpm_p95": 0.10228010002174415,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22415,
+          "avg_depth": 1.28,
+          "tpm_p50": 0.1010816999769304,
+          "tpm_p95": 0.10171790001913905,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 19,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22701,
+          "avg_depth": 1.3,
+          "tpm_p50": 0.10119439999107271,
+          "tpm_p95": 0.10168880000128411,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21490,
+          "avg_depth": 1.18,
+          "tpm_p50": 0.10108809999655932,
+          "tpm_p95": 0.10212600001250394,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 20,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23708,
+          "avg_depth": 1.52,
+          "tpm_p50": 0.10109809998539276,
+          "tpm_p95": 0.10176330001559108,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22629,
+          "avg_depth": 1.34,
+          "tpm_p50": 0.10105920000933111,
+          "tpm_p95": 0.10176579997641966,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 20,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22399,
+          "avg_depth": 1.64,
+          "tpm_p50": 0.10113619998446666,
+          "tpm_p95": 0.10181709998869337,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23278,
+          "avg_depth": 1.76,
+          "tpm_p50": 0.10118120000697672,
+          "tpm_p95": 0.10174670000560582,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 21,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 19563,
+          "avg_depth": 1.06,
+          "tpm_p50": 0.1012281000148505,
+          "tpm_p95": 0.10167619999265298,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 19494,
+          "avg_depth": 1.06,
+          "tpm_p50": 0.10133500001393259,
+          "tpm_p95": 0.1020956999855116,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 21,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 19376,
+          "avg_depth": 1.06,
+          "tpm_p50": 0.10129609997966327,
+          "tpm_p95": 0.10186650001560338,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 19649,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.10129180000512861,
+          "tpm_p95": 0.10176950000459328,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 22,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23427,
+          "avg_depth": 1.62,
+          "tpm_p50": 0.1010324000089895,
+          "tpm_p95": 0.10206020000623539,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23650,
+          "avg_depth": 1.52,
+          "tpm_p50": 0.10101689997827634,
+          "tpm_p95": 0.1015536000195425,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 22,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23651,
+          "avg_depth": 1.5,
+          "tpm_p50": 0.10101819998817518,
+          "tpm_p95": 0.10174290000577457,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23820,
+          "avg_depth": 1.62,
+          "tpm_p50": 0.1011030999943614,
+          "tpm_p95": 0.10163350001676008,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 23,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22547,
+          "avg_depth": 1.48,
+          "tpm_p50": 0.10112020000815392,
+          "tpm_p95": 0.10181379999266937,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23341,
+          "avg_depth": 1.6,
+          "tpm_p50": 0.10113489997456782,
+          "tpm_p95": 0.10163739998824894,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 23,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23160,
+          "avg_depth": 1.68,
+          "tpm_p50": 0.10111760001746006,
+          "tpm_p95": 0.10170520000974648,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22972,
+          "avg_depth": 1.5,
+          "tpm_p50": 0.10114600000088103,
+          "tpm_p95": 0.1018317999842111,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 25,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22895,
+          "avg_depth": 1.42,
+          "tpm_p50": 0.10111369998776354,
+          "tpm_p95": 0.1018818000156898,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22004,
+          "avg_depth": 1.52,
+          "tpm_p50": 0.10112999999546446,
+          "tpm_p95": 0.10190490001696162,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 25,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21434,
+          "avg_depth": 1.26,
+          "tpm_p50": 0.1011376999958884,
+          "tpm_p95": 0.10168399999383837,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21317,
+          "avg_depth": 1.2,
+          "tpm_p50": 0.10122229999979027,
+          "tpm_p95": 0.1017578000028152,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 24,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 20004,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.10136090000742115,
+          "tpm_p95": 0.1019244999915827,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 19986,
+          "avg_depth": 1.06,
+          "tpm_p50": 0.10128229999099858,
+          "tpm_p95": 0.10177830001339316,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 24,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 19701,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.1012310000078287,
+          "tpm_p95": 0.10175750000053085,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 19828,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.10131980001460761,
+          "tpm_p95": 0.10196490000816993,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 26,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21644,
+          "avg_depth": 1.26,
+          "tpm_p50": 0.10127400001510978,
+          "tpm_p95": 0.10211060001165606,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21328,
+          "avg_depth": 1.42,
+          "tpm_p50": 0.10126880000461824,
+          "tpm_p95": 0.10173809999832883,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 27,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21357,
+          "avg_depth": 1.3,
+          "tpm_p50": 0.10131199998431839,
+          "tpm_p95": 0.10172410000814125,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21108,
+          "avg_depth": 1.32,
+          "tpm_p50": 0.10120959999039769,
+          "tpm_p95": 0.1020286999992095,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 26,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 18897,
+          "avg_depth": 1.06,
+          "tpm_p50": 0.10135099999024533,
+          "tpm_p95": 0.10187849999056198,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 18632,
+          "avg_depth": 1.08,
+          "tpm_p50": 0.10133639999548905,
+          "tpm_p95": 0.10210759998881258,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 27,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21180,
+          "avg_depth": 1.26,
+          "tpm_p50": 0.10119119999581017,
+          "tpm_p95": 0.10196999998879619,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21145,
+          "avg_depth": 1.4,
+          "tpm_p50": 0.1013327999971807,
+          "tpm_p95": 0.1017794000217691,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "candidate",
+      "plies": 95,
+      "seed": 29,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21294,
+          "avg_depth": 1.6041666666666667,
+          "tpm_p50": 0.10114939999766648,
+          "tpm_p95": 0.10214450000785291,
+          "moves": 48
+        },
+        "baseline": {
+          "nodes": 20909,
+          "avg_depth": 1.5957446808510638,
+          "tpm_p50": 0.10112540001864545,
+          "tpm_p95": 0.10233270001481287,
+          "moves": 47
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 29,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23198,
+          "avg_depth": 1.6,
+          "tpm_p50": 0.10108049999689683,
+          "tpm_p95": 0.10181619998184033,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22745,
+          "avg_depth": 1.6,
+          "tpm_p50": 0.10109019998344593,
+          "tpm_p95": 0.1023105000203941,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 28,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23425,
+          "avg_depth": 1.4,
+          "tpm_p50": 0.1011030999943614,
+          "tpm_p95": 0.10171350001473911,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23539,
+          "avg_depth": 1.3,
+          "tpm_p50": 0.10112720000324771,
+          "tpm_p95": 0.1019899999955669,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 28,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23511,
+          "avg_depth": 1.28,
+          "tpm_p50": 0.10105850000400096,
+          "tpm_p95": 0.1021265999879688,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23588,
+          "avg_depth": 1.38,
+          "tpm_p50": 0.10115440000663511,
+          "tpm_p95": 0.10178470000391826,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 30,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22775,
+          "avg_depth": 1.32,
+          "tpm_p50": 0.10113180000917055,
+          "tpm_p95": 0.10171999997692183,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22361,
+          "avg_depth": 1.26,
+          "tpm_p50": 0.1010977000114508,
+          "tpm_p95": 0.10210030002053827,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 31,
+      "sideA_owner": "candidate",
+      "per_engine": {
+        "candidate": {
+          "nodes": 22565,
+          "avg_depth": 1.5,
+          "tpm_p50": 0.1011556000157725,
+          "tpm_p95": 0.10171489999629557,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 23014,
+          "avg_depth": 1.64,
+          "tpm_p50": 0.10106280000763945,
+          "tpm_p95": 0.10163410002132878,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 31,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 23033,
+          "avg_depth": 1.62,
+          "tpm_p50": 0.10115649999352172,
+          "tpm_p95": 0.10184839999419637,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 22777,
+          "avg_depth": 1.52,
+          "tpm_p50": 0.101100600004429,
+          "tpm_p95": 0.10199460000148974,
+          "moves": 50
+        }
+      }
+    },
+    {
+      "winner": "draw",
+      "plies": 100,
+      "seed": 30,
+      "sideA_owner": "baseline",
+      "per_engine": {
+        "candidate": {
+          "nodes": 21843,
+          "avg_depth": 1.04,
+          "tpm_p50": 0.10119069999200292,
+          "tpm_p95": 0.10198279999895021,
+          "moves": 50
+        },
+        "baseline": {
+          "nodes": 21627,
+          "avg_depth": 1.04,
+          "tpm_p50": 0.10122270000283606,
+          "tpm_p95": 0.10181210000882857,
+          "moves": 50
+        }
+      }
+    }
+  ],
+  "summary": {
+    "W": 8,
+    "D": 53,
+    "L": 3,
+    "total": 64,
+    "elo": 27.198831638044446,
+    "elo_err": 142.3272496378793,
+    "sprt": "undecided",
+    "llr": 0.11740573712370239,
+    "wall_clock_seconds": 162.44313369999873
+  }
+}
