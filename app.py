@@ -4,9 +4,14 @@ from flask import Flask, jsonify, request, render_template
 import copy
 import random
 
+import layout
 from pieceClasses import Post, Camp, Headquarters
 from pieceClasses import (Mar, Gen, MGen, BGen, Col, Maj, Capt, Lt, Spr,
                           Bomb, LMN, Flag)
+from layout import (
+    CAMP_POSITIONS_A, CAMP_POSITIONS_B,
+    HQ_POSITIONS_A, HQ_POSITIONS_B,
+)
 from algorithms import (
     isLegal,
     contact,
@@ -43,157 +48,17 @@ game = GameState()
 set_search_profile("fast")
 
 
-def make_pieces(side):
-    """All 25 pieces for one side."""
-    return [
-        Mar(side), Gen(side), MGen(side), MGen(side),
-        BGen(side), BGen(side), Col(side), Col(side),
-        Maj(side), Maj(side), Capt(side), Capt(side), Capt(side),
-        Lt(side), Lt(side), Lt(side), Spr(side), Spr(side), Spr(side),
-        Bomb(side), Bomb(side), LMN(side), LMN(side), LMN(side),
-        Flag(side),
-    ]
-
-
 # Board structure: which cell type at each (row, col)
 # Camps are always empty at start; pieces only go on Post/Headquarters.
 # Side A: rows 0-5, Side B: rows 6-11
-CAMP_POSITIONS_A = {(2, 1), (2, 3), (3, 2), (4, 1), (4, 3)}
-CAMP_POSITIONS_B = {(7, 1), (7, 3), (8, 2), (9, 1), (9, 3)}
-HQ_POSITIONS_A = {(0, 1), (0, 3)}
-HQ_POSITIONS_B = {(11, 1), (11, 3)}
-
-
-def random_layout_for_side(side):
-    """Return a dict {(row, col): piece} with a strategically-weighted layout.
-
-    Strategic principles:
-      - Flag in a headquarters
-      - Mines clustered near the flag (shield formation)
-      - At least one bomb near the flag as a second defense layer
-      - Marshal / General in the mid rows (safe but active)
-      - MGen / BGen on or near the front (engage early)
-      - At least one sapper on a railroad column (col 0 or 4)
-      - Weak pieces fill remaining spots
-    """
-    if side == "A":
-        camps = CAMP_POSITIONS_A
-        hqs = HQ_POSITIONS_A
-        back_rows = {0, 1}
-        mid_rows = {2, 3}
-        front_rows = {4, 5}
-        front_row = 5  # bombs not allowed here
-    else:
-        camps = CAMP_POSITIONS_B
-        hqs = HQ_POSITIONS_B
-        back_rows = {10, 11}
-        mid_rows = {8, 9}
-        front_rows = {6, 7}
-        front_row = 6
-
-    all_rows = sorted(back_rows | mid_rows | front_rows)
-    all_pos = [(r, c) for r in all_rows for c in range(5)
-               if (r, c) not in camps and (r, c) not in hqs]
-    hq_list = list(hqs)
-
-    pieces = make_pieces(side)
-    flag = [p for p in pieces if isinstance(p, Flag)][0]
-    lmns = [p for p in pieces if isinstance(p, LMN)]
-    bombs = [p for p in pieces if isinstance(p, Bomb)]
-    marshal = [p for p in pieces if isinstance(p, Mar)][0]
-    general = [p for p in pieces if isinstance(p, Gen)][0]
-    mgens = [p for p in pieces if isinstance(p, MGen)]
-    bgens = [p for p in pieces if isinstance(p, BGen)]
-    sappers = [p for p in pieces if isinstance(p, Spr)]
-    others = [p for p in pieces if isinstance(p, (Col, Maj, Capt, Lt))]
-    random.shuffle(others)
-
-    placement = {}
-
-    def available(zone_rows=None):
-        """Positions not yet taken, optionally filtered by row set."""
-        return [p for p in all_pos + hq_list
-                if p not in placement and
-                (zone_rows is None or p[0] in zone_rows)]
-
-    def place_in(piece, candidates):
-        """Place a piece in one of the candidate positions (random)."""
-        opts = [c for c in candidates if c not in placement]
-        if not opts:
-            opts = [p for p in all_pos + hq_list if p not in placement]
-        pos = random.choice(opts)
-        placement[pos] = piece
-
-    # 1. Flag → random headquarters
-    flag_pos = random.choice(hq_list)
-    placement[flag_pos] = flag
-    fx, fy = flag_pos
-
-    # 2. Mines → back rows, sorted by proximity to flag
-    mine_candidates = [p for p in all_pos
-                       if p[0] in back_rows and p not in placement]
-    mine_candidates.sort(key=lambda p: abs(p[0] - fx) + abs(p[1] - fy))
-    for i, lmn in enumerate(lmns):
-        placement[mine_candidates[i]] = lmn
-
-    # 3. Bombs: first near flag (back rows), second in mid zone
-    bomb_back = [p for p in all_pos
-                 if p[0] in back_rows and p not in placement]
-    bomb_back.sort(key=lambda p: abs(p[0] - fx) + abs(p[1] - fy))
-    if bomb_back:
-        placement[bomb_back[0]] = bombs[0]
-    else:
-        place_in(bombs[0], available(mid_rows))
-
-    bomb_mid = [p for p in all_pos
-                if p[0] in mid_rows and p not in placement]
-    random.shuffle(bomb_mid)
-    if bomb_mid:
-        placement[bomb_mid[0]] = bombs[1]
-    else:
-        place_in(bombs[1], [p for p in available() if p[0] != front_row])
-
-    # 4. Marshal + General → mid zone (safe but can advance)
-    mid_spots = available(mid_rows)
-    random.shuffle(mid_spots)
-    for piece in [marshal, general]:
-        if mid_spots:
-            placement[mid_spots.pop()] = piece
-        else:
-            place_in(piece, available(back_rows))
-
-    # 5. MGen + BGen → front zone (early engagement)
-    front_spots = available(front_rows)
-    random.shuffle(front_spots)
-    for piece in mgens + bgens:
-        if front_spots:
-            placement[front_spots.pop()] = piece
-        else:
-            place_in(piece, available(mid_rows))
-
-    # 6. At least 1 sapper on a railroad column (col 0 or 4)
-    rail_spots = [p for p in available() if p[1] in (0, 4)]
-    random.shuffle(rail_spots)
-    if rail_spots:
-        placement[rail_spots[0]] = sappers[0]
-        remaining_sappers = sappers[1:]
-    else:
-        remaining_sappers = sappers
-
-    # 7. Fill remaining positions with other pieces + leftover sappers
-    fill_pieces = others + remaining_sappers
-    random.shuffle(fill_pieces)
-    fill_spots = available()
-    random.shuffle(fill_spots)
-    for i, piece in enumerate(fill_pieces):
-        placement[fill_spots[i]] = piece
-
-    return placement
+# (CAMP_POSITIONS_A/B and HQ_POSITIONS_A/B are imported from layout.py)
 
 
 def init_board(randomize=True):
     """Create the 12x5 board. If randomize, generate random legal layouts."""
-    # Build empty board skeleton first
+    if randomize:
+        return layout.build_initial_board()
+    # Default fixed layout (original) — kept for non-randomized debug
     board = []
     for r in range(12):
         row = []
@@ -205,18 +70,9 @@ def init_board(randomize=True):
             else:
                 row.append(Post(r, c))
         board.append(row)
-
-    if randomize:
-        for side in ("A", "B"):
-            layout = random_layout_for_side(side)
-            for (r, c), piece in layout.items():
-                board[r][c].piece = piece
-    else:
-        # Default fixed layout (original)
-        default = _default_pieces()
-        for (r, c), piece in default.items():
-            board[r][c].piece = piece
-
+    default = _default_pieces()
+    for (r, c), piece in default.items():
+        board[r][c].piece = piece
     return board
 
 
