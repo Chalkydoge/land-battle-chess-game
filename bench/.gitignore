@@ -1,0 +1,4 @@
+snapshots/*/
+!snapshots/.gitkeep
+results/*.json
+__pycache__/
