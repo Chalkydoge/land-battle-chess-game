@@ -1254,7 +1254,8 @@ def get_last_search_debug():
     return LAST_SEARCH_DEBUG
 
 
-def _root_search(board, side, maxDepth, alpha, beta, prev_move=None):
+def _root_search(board, side, maxDepth, alpha, beta, prev_move=None,
+                 time_limit_override=None):
     global LAST_SEARCH_DEBUG
     global SEARCH_DEADLINE
     global NODE_COUNT
@@ -1289,7 +1290,10 @@ def _root_search(board, side, maxDepth, alpha, beta, prev_move=None):
         TRANSPOSITION_TABLE.clear()
     NODE_COUNT = 0
     LAST_COMPLETED_DEPTH = 0
-    SEARCH_DEADLINE = time.perf_counter() + _profile_value("time_limit")
+    SEARCH_DEADLINE = time.perf_counter() + (
+        time_limit_override if time_limit_override is not None
+        else _profile_value("time_limit")
+    )
 
     bestMove = None
     bestScore = getBoardScore(board, include_mobility=False)
