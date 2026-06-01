@@ -5,6 +5,7 @@ import copy
 import random
 
 import layout
+from game_records import JsonlGameRecorder
 from pieceClasses import Post, Camp, Headquarters
 from pieceClasses import (Mar, Gen, MGen, BGen, Col, Maj, Capt, Lt, Spr,
                           Bomb, LMN, Flag)
@@ -42,6 +43,7 @@ class GameState:
         self.ai_mar_alive = True  # AI marshal (司令) alive — flag hidden while True
         self.last_ai_debug = None
         self.last_ai_move = None
+        self.recorder = None
 
 
 game = GameState()
@@ -54,10 +56,10 @@ set_search_profile("fast")
 # (CAMP_POSITIONS_A/B and HQ_POSITIONS_A/B are imported from layout.py)
 
 
-def init_board(randomize=True):
+def init_board(randomize=True, rng=None):
     """Create the 12x5 board. If randomize, generate random legal layouts."""
     if randomize:
-        return layout.build_initial_board()
+        return layout.build_initial_board(rng)
     # Default fixed layout (original) — kept for non-randomized debug
     board = []
     for r in range(12):
@@ -148,6 +150,7 @@ def board_response():
         "turn": game.turn,
         "winner": game.winner,
         "mode": game.mode,
+        "recording": game.recorder.status() if game.recorder is not None else {"enabled": False},
         "ai_debug_current": get_plan_debug_snapshot(game.board, "A") if game.board is not None else None,
         "ai_debug_last_turn": game.last_ai_debug,
     }
@@ -197,6 +200,27 @@ def build_move_record(fr, fc, tr, tc, piece, mode, ai_mar_alive):
     }
 
 
+def active_recorder():
+    if game.mode == "open" and game.recorder is not None:
+        return game.recorder
+    return None
+
+
+def terminal_record(winner, target_piece):
+    if winner is None:
+        return None
+    if target_piece is not None and target_piece.order == 0:
+        reason = "flag_capture"
+    else:
+        reason = "no_legal_moves"
+    return {"winner": winner, "reason": reason}
+
+
+def finish_recording(winner, reason):
+    if game.recorder is not None:
+        game.recorder.finish(winner, reason, game.board)
+
+
 # --------------- routes ---------------
 
 @app.route("/")
@@ -212,7 +236,16 @@ def new_game():
     randomize = body.get("randomize", True)
     if mode not in ("open", "hidden"):
         mode = "hidden"
-    game.board = init_board(randomize=randomize)
+    if game.recorder is not None and not game.recorder.finished and game.board is not None:
+        finish_recording(game.winner, "new_game_started")
+    game.recorder = None
+
+    layout_seed = None
+    rng = None
+    if randomize:
+        layout_seed = random.SystemRandom().randrange(0, 2 ** 63)
+        rng = random.Random(layout_seed)
+    game.board = init_board(randomize=randomize, rng=rng)
     game.winner = None
     game.turn = "B"  # player goes first
     # Hidden mode uses its own weaker profile; open mode keeps the original.
@@ -234,6 +267,17 @@ def new_game():
     game.ai_mar_alive = True
     game.last_ai_debug = None
     game.last_ai_move = None
+    if mode == "open":
+        game.recorder = JsonlGameRecorder().start_game(game.board, {
+            "source": "web",
+            "mode": "open",
+            "visibility": "full",
+            "difficulty": difficulty,
+            "max_depth": game.maxDepth,
+            "randomize": bool(randomize),
+            "layout_seed": layout_seed,
+            "side_to_move": "B",
+        })
     # Masking: AI treats B pieces as unknown until combat reveals them.
     set_hidden_mode(mode == "hidden")
     reset_reveal_tracking()
@@ -279,11 +323,18 @@ def make_move():
 
     battle_events = []
     player_piece_before = game.board[fr][fc].piece
+    player_target_before = game.board[tr][tc].piece
+    recorder = active_recorder()
+    player_board_before_record = recorder.serialize_board_state(game.board) if recorder is not None else None
+    player_combat_record = (
+        recorder.combat_payload(player_piece_before, player_target_before)
+        if recorder is not None else None
+    )
     player_move_record = build_move_record(fr, fc, tr, tc, player_piece_before, game.mode, game.ai_mar_alive)
     ai_move_record = None
 
     # execute player move
-    if game.board[tr][tc].piece is None:
+    if player_target_before is None:
         game.board[tr][tc].piece = game.board[fr][fc].piece
         game.board[fr][fc].piece = None
     else:
@@ -300,6 +351,19 @@ def make_move():
         game.ai_mar_alive = False
 
     board_after_player = serialize_board(game.board, game.mode, game.ai_mar_alive)
+    if recorder is not None:
+        player_terminal = terminal_record(game.winner, player_target_before)
+        recorder.record_ply(
+            "B", "human", (fr, fc, tr, tc),
+            player_piece_before, player_target_before,
+            player_board_before_record,
+            recorder.serialize_board_state(game.board),
+            combat=player_combat_record,
+            terminal=player_terminal,
+            next_side=None if player_terminal is not None else "A",
+        )
+        if player_terminal is not None:
+            finish_recording(player_terminal["winner"], player_terminal["reason"])
 
     if game.winner is not None:
         return jsonify({
@@ -321,8 +385,14 @@ def make_move():
         a, b, i, j = ai_move
         game.last_ai_move = ai_move
         ai_piece_before = game.board[a][b].piece
+        ai_target_before = game.board[i][j].piece
+        ai_board_before_record = recorder.serialize_board_state(game.board) if recorder is not None else None
+        ai_combat_record = (
+            recorder.combat_payload(ai_piece_before, ai_target_before)
+            if recorder is not None else None
+        )
         ai_move_record = build_move_record(a, b, i, j, ai_piece_before, game.mode, game.ai_mar_alive)
-        if game.board[i][j].piece is None:
+        if ai_target_before is None:
             game.board[i][j].piece = game.board[a][b].piece
             game.board[a][b].piece = None
         else:
@@ -332,6 +402,20 @@ def make_move():
             mark_piece_revealed(game.board[a][b].piece)
             mark_piece_revealed(game.board[i][j].piece)
             contactWithGameOverCheck(a, b, i, j, game)
+        if recorder is not None:
+            ai_terminal = terminal_record(game.winner, ai_target_before)
+            recorder.record_ply(
+                "A", "ai", (a, b, i, j),
+                ai_piece_before, ai_target_before,
+                ai_board_before_record,
+                recorder.serialize_board_state(game.board),
+                combat=ai_combat_record,
+                search=game.last_ai_debug,
+                terminal=ai_terminal,
+                next_side=None if ai_terminal is not None else "B",
+            )
+            if ai_terminal is not None:
+                finish_recording(ai_terminal["winner"], ai_terminal["reason"])
     else:
         game.last_ai_move = None
 

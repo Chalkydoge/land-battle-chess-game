@@ -16,6 +16,9 @@ Thumbs.db
 # Local profiling outputs
 *.stats
 
+# Local game records
+records/
+
 # Local env files
 .env
 .env.*
